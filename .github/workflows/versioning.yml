@@ -1,0 +1,105 @@
+name: Bump Version and Push for Apps
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'soloservice/**'
+      - 'solofinance/**'
+      - 'soloaccounting/**'
+      - 'soloecommerce/**'
+      - 'soloweb/**'
+      - 'solopayment/**'
+      - 'soloblog/**'
+
+permissions:
+  contents: write
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodları Depodan Çek
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Tüm geçmişi çekmek için
+
+      - name: Python Ortamını Ayarla
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Bağımlılıkları Yükle
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade bump2version
+
+      - name: Git Kullanıcı Bilgilerini Ayarla
+        run: |
+          git config --global user.name "ibuyukerdem"
+          git config --global user.email "buyukerdem@gmail.com"
+
+      - name: Değişen Dosyaları Filtrele
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            soloservice:
+              - 'soloservice/**'
+            solofinance:
+              - 'solofinance/**'
+            soloaccounting:
+              - 'soloaccounting/**'
+            soloecommerce:
+              - 'soloecommerce/**'
+            soloweb:
+              - 'soloweb/**'
+            solopayment:
+              - 'solopayment/**'
+            soloblog:
+              - 'soloblog/**'
+
+      - name: Soloservice için Versiyonu Artır
+        if: steps.filter.outputs.soloservice == 'true'
+        working-directory: ./soloservice
+        run: bump2version patch
+
+      - name: Solofinance için Versiyonu Artır
+        if: steps.filter.outputs.solofinance == 'true'
+        working-directory: ./solofinance
+        run: bump2version patch
+
+      - name: Soloaccounting için Versiyonu Artır
+        if: steps.filter.outputs.soloaccounting == 'true'
+        working-directory: ./soloaccounting
+        run: bump2version patch
+
+      - name: Soloecommerce için Versiyonu Artır
+        if: steps.filter.outputs.soloecommerce == 'true'
+        working-directory: ./soloecommerce
+        run: bump2version patch
+
+      - name: Soloweb için Versiyonu Artır
+        if: steps.filter.outputs.soloweb == 'true'
+        working-directory: ./soloweb
+        run: bump2version patch
+
+      - name: Solopayment için Versiyonu Artır
+        if: steps.filter.outputs.solopayment == 'true'
+        working-directory: ./solopayment
+        run: bump2version patch
+
+      - name: Soloblog için Versiyonu Artır
+        if: steps.filter.outputs.soloblog == 'true'
+        working-directory: ./soloblog
+        run: bump2version patch
+
+      - name: Değişiklikleri Push Et
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
+          force: true

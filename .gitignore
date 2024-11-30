@@ -1,0 +1,19 @@
+# Python derleyici dosyaları
+__pycache__/
+*.pyc
+
+# Sanal ortam
+venv/
+
+# PyCharm yapılandırma dosyaları
+.idea/
+
+# Günlük dosyaları ve geçici dosyalar
+*.log
+*.tmp
+
+# Çıkış dosyaları
+/build/
+/dist/
+
+.env
