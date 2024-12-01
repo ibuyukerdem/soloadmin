@@ -1,0 +1,18 @@
+{% load static i18n %}
+
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="{{ DEFAULT_CHARSET }}">
+    <title>{% block title %}{% trans 'Admin site' %}{% endblock %}</title>
+    {% block extrahead %}{% endblock %}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/base.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/login.css' %}">
+    {% block stylesheet %}{% endblock %}
+    {% block extrastyle %}{% endblock %}
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+    {% block content %}{% endblock %}
+    {% block extrabody %}{% endblock %}
+</body>
+</html>

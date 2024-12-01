@@ -1,10 +1,24 @@
-from django.contrib.auth.admin import UserAdmin
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.admin import UserAdmin
 from django.contrib.sites.models import Site
-
+from .forms import CustomAdminAuthenticationForm
 from .models import Module, SiteUrun, UserSite, WebServer, SqlServer, MailServer, DnsServer, \
-    OperatingSystem, Product, Service, CustomSiteConfiguration, CustomUser
+    OperatingSystem, Product, Service, CustomSiteConfiguration, CustomUser, Blacklist
+
+
+class CustomAdminSite(AdminSite):
+    login_form = CustomAdminAuthenticationForm
+
+custom_admin_site = CustomAdminSite()
+
+# Yönetim paneli URL'sini kullanacak şekilde güncelleyin
+from django.urls import path
+
+urlpatterns = [
+    path('admin/', custom_admin_site.urls),
+]
 
 # Yönetim paneli başlıklarını `settings.py`'den alarak özelleştiriyoruz
 admin.site.site_header = getattr(settings, 'ADMIN_SITE_HEADER', 'Django Yönetim Paneli')
@@ -15,10 +29,14 @@ admin.site.index_title = getattr(settings, 'ADMIN_INDEX_TITLE', 'Hoş Geldiniz!'
 class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('Personal Info', {'fields': ('first_name', 'last_name', 'email', 'phoneNumber', 'mobilePhone', 'address', 'postalCode', 'city', 'district', 'country', 'dateOfBirth', 'profilePicture')}),
+        ('Personal Info', {'fields': (
+            'first_name', 'last_name', 'email', 'phoneNumber', 'mobilePhone', 'address', 'postalCode', 'city',
+            'district', 'country', 'dateOfBirth', 'profilePicture')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important Dates', {'fields': ('last_login', 'date_joined')}),
-        ('Additional Info', {'fields': ('isIndividual', 'identificationNumber', 'taxOffice', 'isEfatura', 'secretQuestion', 'secretAnswer', 'site', 'smsPermission', 'digitalMarketingPermission', 'kvkkPermission')}),
+        ('Additional Info', {'fields': (
+            'isIndividual', 'identificationNumber', 'taxOffice', 'isEfatura', 'secretQuestion', 'secretAnswer', 'site',
+            'smsPermission', 'digitalMarketingPermission', 'kvkkPermission')}),
     )
 
     add_fieldsets = (
@@ -28,9 +46,12 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active', 'isIndividual', 'isEfatura', 'smsPermission', 'digitalMarketingPermission', 'kvkkPermission')
+    list_display = (
+        'username', 'email', 'first_name', 'last_name', 'is_active', 'isIndividual', 'isEfatura', 'smsPermission',
+        'digitalMarketingPermission', 'kvkkPermission')
     search_fields = ('username', 'first_name', 'last_name', 'email', 'phoneNumber', 'mobilePhone')
     ordering = ('username',)
+
 
 admin.site.register(CustomUser, CustomUserAdmin)
 
@@ -214,3 +235,23 @@ class CustomSiteConfigurationAdmin(admin.ModelAdmin):
     list_filter = ('webServer', 'sqlServer', 'mailServer', 'dnsServer')
     search_fields = ('site__name', 'webServer__name', 'sqlServer__name', 'mailServer__name', 'dnsServer__name')
     ordering = ('-createdAt',)
+
+
+@admin.register(Blacklist)
+class BlacklistAdmin(admin.ModelAdmin):
+    list_display = ('ip_address', 'reason', 'added_on', 'is_active')
+    list_filter = ('is_active', 'added_on')
+    search_fields = ('ip_address', 'reason')
+    actions = ['activate_ips', 'deactivate_ips']
+
+    def activate_ips(self, request, queryset):
+        queryset.update(is_active=True)
+        self.message_user(request, "Seçilen IP adresleri aktifleştirildi.")
+
+    activate_ips.short_description = "Seçili IP'leri Aktifleştir"
+
+    def deactivate_ips(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, "Seçilen IP adresleri pasifleştirildi.")
+
+    deactivate_ips.short_description = "Seçili IP'leri Pasifleştir"

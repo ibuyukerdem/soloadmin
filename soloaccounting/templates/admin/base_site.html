@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+
+{% block title %}Solofor Yönetim{% endblock %}
+
+{% block branding %}
+<div id="branding">
+    <img src="https://solofor.com/_next/image?url=%2Fimages%2Flogo%2Flogo_01.png&w=640&q=75" alt="Solofor Logo" style="height: 40px;">
+    <h1 id="site-name">Yönetim Paneli</h1>
+</div>
+{% endblock %}
+
+{% block nav-global %}
+<!-- Üst navigasyon menüsü (isteğe bağlı olarak özelleştirilebilir) -->
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<!-- Özel CSS dosyalarınızı burada ekleyebilirsiniz -->
+<link rel="stylesheet" type="text/css" href="{% static 'css/admin_custom.css' %}">
+{% endblock %}

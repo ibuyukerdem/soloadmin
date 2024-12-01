@@ -45,7 +45,7 @@ class CustomUser(AbstractUser):
         verbose_name_plural = "Kullanıcılar"
 
     def __str__(self):
-        return self.first_name + ' ' + self.last_name
+        return self.username
 
 
 class Product(models.Model):
@@ -366,3 +366,13 @@ class CustomSiteConfiguration(models.Model):
 
     def __str__(self):
         return f"{self.site.name} Konfigürasyonu"
+
+class Blacklist(models.Model):
+    ip_address = models.GenericIPAddressField(unique=True)
+    added_on = models.DateTimeField(auto_now_add=True)
+    reason = models.CharField(max_length=255, default="Şüpheli davranış")
+    is_active = models.BooleanField(default=True)
+    #createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+
+    def __str__(self):
+        return f"{self.ip_address} - {self.reason} - {'Aktif' if self.is_active else 'Pasif'}"

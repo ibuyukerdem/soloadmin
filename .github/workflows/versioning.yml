@@ -1,4 +1,4 @@
-name: Bump Version and Push for Apps
+name: Bump Version, Update Dependencies, and Push for Apps
 
 on:
   push:
@@ -62,6 +62,7 @@ jobs:
             soloblog:
               - 'soloblog/**'
 
+      # Versiyonu Artırma İşlemleri
       - name: Soloservice için Versiyonu Artır
         if: steps.filter.outputs.soloservice == 'true'
         working-directory: ./soloservice
@@ -97,6 +98,24 @@ jobs:
         working-directory: ./soloblog
         run: bump2version patch
 
+      # requirements.txt Dosyasını Güncelleme veya Oluşturma
+      - name: Gereksinimleri Güncelle veya Oluştur
+        run: |
+          pip freeze > requirements.txt
+
+      # Safety ile Güvenlik Taraması
+      - name: Safety Kur ve Güvenlik Taraması Yap
+        run: |
+          pip install safety
+          safety scan --file=requirements.txt --output text > safety_report.txt
+
+      # Güvenlik Raporunu Git'e Yükleme
+      - name: Güvenlik Raporunu Commit Et
+        run: |
+          git add requirements.txt safety_report.txt
+          git commit -m "Gereksinimler güncellendi ve güvenlik tarama raporu eklendi."
+
+      # Değişiklikleri Push Et
       - name: Değişiklikleri Push Et
         uses: ad-m/github-push-action@v0.6.0
         with:

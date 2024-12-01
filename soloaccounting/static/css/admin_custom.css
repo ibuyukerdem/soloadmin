@@ -1,0 +1,46 @@
+/* Örnek stil ayarları */
+
+/* Genel ayarlar */
+body {
+    background-color: #f0f0f0; /* Arka plan rengini ayarlayın */
+    font-family: Arial, sans-serif; /* Yazı tipini ayarlayın */
+}
+
+/* Üst başlık (header) */
+#header {
+    background-color: #007BFF; /* Üst başlığın arka plan rengi */
+    color: #ffffff; /* Yazı rengi */
+}
+
+#branding {
+    display: flex;
+    align-items: center;
+}
+
+#branding img {
+    margin-right: 10px;
+}
+
+#branding h1 {
+    font-size: 24px;
+}
+
+/* Sol menü (sidebar) */
+#content-main {
+    /* Ana içerik alanı için stil ayarları */
+}
+
+/* Butonlar ve formlar */
+button, .button {
+    background-color: #007BFF; /* Buton arka plan rengi */
+    color: #ffffff; /* Buton yazı rengi */
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+}
+
+button:hover, .button:hover {
+    background-color: #0056b3; /* Hover durumunda buton rengi */
+}
+
+/* Diğer stil ayarlarınızı ekleyin */
