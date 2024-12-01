@@ -25,6 +25,11 @@ class ValidateRequestMiddleware:
         if resolve(request.path).app_name == 'admin':
             return self.get_response(request)
 
+        # Belirli endpoint'leri hariç tut
+        EXCLUDED_PATHS = ['/api/token/', '/api/token/refresh/']
+        if request.path in EXCLUDED_PATHS:
+            return self.get_response(request)
+
         # İstek Boyutunu Kontrol Et
         MAX_BODY_SIZE = 1024 * 1024  # Maksimum body boyutu: 1 MB
         if request.method in ['POST', 'PUT', 'PATCH'] and len(request.body) > MAX_BODY_SIZE:

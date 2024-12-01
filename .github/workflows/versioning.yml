@@ -107,7 +107,7 @@ jobs:
       - name: Safety Kur ve Güvenlik Taraması Yap
         run: |
           pip install safety
-          safety scan --file=requirements.txt --output text > safety_report.txt
+          safety scan --file=requirements.txt --output json > safety_report.json
 
       # Güvenlik Raporunu Git'e Yükleme
       - name: Güvenlik Raporunu Commit Et
