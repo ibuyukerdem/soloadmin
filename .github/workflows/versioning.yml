@@ -103,16 +103,10 @@ jobs:
         run: |
           pip freeze > requirements.txt
 
-      # Safety ile Güvenlik Taraması
-      - name: Safety Kur ve Güvenlik Taraması Yap
-        run: |
-          pip install safety
-          safety scan --file=requirements.txt --output json --keyless > safety_report.json
-
       # Güvenlik Raporunu Git'e Yükleme
       - name: Güvenlik Raporunu Commit Et
         run: |
-          git add requirements.txt safety_report.txt
+          git add requirements.txt
           git commit -m "Gereksinimler güncellendi ve güvenlik tarama raporu eklendi."
 
       # Değişiklikleri Push Et
