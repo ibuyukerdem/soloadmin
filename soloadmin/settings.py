@@ -54,7 +54,7 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'corsheaders',
     'axes',
-    'django_recaptcha',  # reCAPTCHA uygulaması
+    'django_recaptcha',
 ]
 
 LOCAL_APPS = [
@@ -83,15 +83,27 @@ SECURITY_MIDDLEWARE = [
 ]
 
 CUSTOM_MIDDLEWARE = [
-    'middleware.soloadmin.ip_blocking.BlockIPMiddleware',  # Özel engelleme
-    'middleware.soloadmin.request_validator.ValidateRequestMiddleware',  # İstek doğrulama
-    'middleware.soloadmin.cors_manager.DynamicCorsMiddleware',  # Dinamik CORS
-    'middleware.soloadmin.global_rate_limit.GlobalRateLimitMiddleware',  # Global rate limit
-    'middleware.soloadmin.site_management.SiteMiddleware',  # Site yönetimi
-    'middleware.soloaccounting.recaptcha_admin.ReCaptchaAdminMiddleware',  # ReCaptcha admin
+    #'middleware.soloadmin.ip_blocking.BlockIPMiddleware',  # Özel engelleme
+    #'middleware.soloadmin.request_validator.ValidateRequestMiddleware',  # İstek doğrulama
+    #'middleware.soloadmin.cors_manager.DynamicCorsMiddleware',  # Dinamik CORS
+    #'middleware.soloadmin.global_rate_limit.GlobalRateLimitMiddleware',  # Global rate limit
+    #'middleware.soloadmin.site_management.SiteMiddleware',  # Site yönetimi
+    #'middleware.soloaccounting.recaptcha_admin.ReCaptchaAdminMiddleware',  # ReCaptcha admin
 ]
 
 MIDDLEWARE = SECURITY_MIDDLEWARE + CUSTOM_MIDDLEWARE
+
+if ENV == 'development':
+    INSTALLED_APPS += ['debug_toolbar','django_extensions']
+    MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+
+    # Debug Toolbar Ayarları
+    INTERNAL_IPS = ['127.0.0.1','192.168.1.253']
+    import socket
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS += [ip[:-1] + "1" for ip in ips]
+    CORS_ORIGIN_ALLOW_ALL = True
+    CORS_ALLOW_CREDENTIALS = True
 
 # Site Ayarı
 SITE_ID = 2
@@ -183,16 +195,18 @@ AXES_FAILURE_LIMIT_PER_SITE = False
 
 # Swagger Ayarları
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
+    'USE_SESSION_AUTH': False,  # Session Authentication devre dışı bırakıldı
     'SECURITY_DEFINITIONS': {
         'Bearer': {
-            'type': 'apiKey',
-            'name': 'Authorization',
-            'in': 'header',
+            'type': 'apiKey',   # API anahtarı olarak ayarlandı
+            'name': 'Authorization',  # Header'da kullanılacak anahtar
+            'in': 'header',     # Header'da gönderilecek
         },
     },
+    'DEFAULT_INFO': 'soloadmin.api.urls',  # Projenizde API bilgilerini tanımlayın
+    'LOGIN_URL': 'rest_framework:login',  # Eğer oturum açma sayfanız varsa
+    'LOGOUT_URL': 'rest_framework:logout',
 }
-
 # Cache Ayarları
 CACHES = {
     'default': {

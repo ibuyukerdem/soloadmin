@@ -2,6 +2,7 @@ from django.urls import path, include
 from . import views
 
 urlpatterns = [
+    path('api-auth/', include('rest_framework.urls')),
     path('accounting/', include('soloaccounting.api.urls')),  # soloaccounting API yönlendirmesi
     path('blog/', include('soloblog.api.urls')),  # soloblog API yönlendirmesi
     path('ecommerce/', include('soloecommerce.api.urls')),  # soloecommerce API yönlendirmesi

@@ -18,6 +18,7 @@ class CustomUser(AbstractUser):
     isIndividual = models.BooleanField(default=True, verbose_name='Kurumsal Fatura İstiyorum')
     identificationNumber = models.CharField(max_length=20, blank=True, null=True, verbose_name='TC Kimlik/Vergi Numarası')
     taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
+    companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
     isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
     secretQuestion = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Soru')
     secretAnswer = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Cevap')
