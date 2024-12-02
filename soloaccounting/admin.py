@@ -1,15 +1,19 @@
+from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.sites.models import Site
+
 from .forms import CustomAdminAuthenticationForm
+from .models import ExtendedSite
 from .models import Module, SiteUrun, UserSite, WebServer, SqlServer, MailServer, DnsServer, \
     OperatingSystem, Product, Service, CustomSiteConfiguration, CustomUser, Blacklist
 
 
 class CustomAdminSite(AdminSite):
     login_form = CustomAdminAuthenticationForm
+
 
 custom_admin_site = CustomAdminSite()
 
@@ -102,15 +106,55 @@ class UserSiteAdmin(admin.ModelAdmin):
     autocomplete_fields = ('site',)
 
 
-# Önce mevcut kaydı kaldırıyoruz
+class SiteAdminForm(forms.ModelForm):
+    is_active = forms.BooleanField(
+        label="Active",
+        required=False,
+    )
+
+    class Meta:
+        model = Site
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:  # Eğer bir kayıt düzenleniyorsa
+            try:
+                # Mevcut ExtendedSite değerini al
+                self.fields["is_active"].initial = self.instance.extended_site.isActive
+            except ExtendedSite.DoesNotExist:
+                self.fields["is_active"].initial = False
+
+class SiteAdmin(admin.ModelAdmin):
+    form = SiteAdminForm
+    list_display = ("domain", "name", "is_active", "created_at", "updated_at")
+    search_fields = ("domain", "name")
+
+    def is_active(self, obj):
+        return obj.extended_site.isActive if hasattr(obj, "extended_site") else None
+    is_active.boolean = True
+    is_active.short_description = "Active"
+
+    def created_at(self, obj):
+        return obj.extended_site.createdAt if hasattr(obj, "extended_site") else None
+    created_at.short_description = "Created At"
+
+    def updated_at(self, obj):
+        return obj.extended_site.updatedAt if hasattr(obj, "extended_site") else None
+    updated_at.short_description = "Updated At"
+
+    def save_model(self, request, obj, form, change):
+        # Site modelini kaydet
+        super().save_model(request, obj, form, change)
+        # ExtendedSite için is_active değerini formdan al
+        is_active = form.cleaned_data.get("is_active", False)
+        # ExtendedSite nesnesini oluştur veya güncelle
+        extended_site, created = ExtendedSite.objects.get_or_create(site=obj)
+        extended_site.isActive = is_active
+        extended_site.save()
+
 admin.site.unregister(Site)
-
-
-# Varsayılan Site modeline özelleştirme
-@admin.register(Site)
-class CustomSiteAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'domain')
-    search_fields = ('name', 'domain')
+admin.site.register(Site, SiteAdmin)
 
 
 @admin.register(OperatingSystem)

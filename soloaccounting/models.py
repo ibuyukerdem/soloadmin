@@ -2,7 +2,23 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.contrib.sites.models import Site
 from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+
+class ExtendedSite(models.Model):
+    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="extended_site")
+    createdAt = models.DateTimeField(_("created at"), auto_now_add=True)
+    updatedAt = models.DateTimeField(_("updated at"), auto_now=True)
+    isActive = models.BooleanField(_("active"), default=True)
+
+    class Meta:
+        verbose_name = _("extended site")
+        verbose_name_plural = _("extended sites")
+
+    def __str__(self):
+        return self.site.name
 
 
 class CustomUser(AbstractUser):
@@ -14,9 +30,11 @@ class CustomUser(AbstractUser):
     district = models.CharField(max_length=100, blank=True, null=True, verbose_name='İlçe')
     country = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ülke')
     dateOfBirth = models.DateField(blank=True, null=True, verbose_name='Doğum Tarihi')
-    profilePicture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True, verbose_name='Profil Resmi')
+    profilePicture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True,
+                                       verbose_name='Profil Resmi')
     isIndividual = models.BooleanField(default=True, verbose_name='Kurumsal Fatura İstiyorum')
-    identificationNumber = models.CharField(max_length=20, blank=True, null=True, verbose_name='TC Kimlik/Vergi Numarası')
+    identificationNumber = models.CharField(max_length=20, blank=True, null=True,
+                                            verbose_name='TC Kimlik/Vergi Numarası')
     taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
     companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
     isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
@@ -156,10 +174,6 @@ class UserSite(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.site.name}"
-
-
-from django.db import models
-from django.contrib.sites.models import Site
 
 
 class OperatingSystem(models.Model):
@@ -368,12 +382,14 @@ class CustomSiteConfiguration(models.Model):
     def __str__(self):
         return f"{self.site.name} Konfigürasyonu"
 
+
 class Blacklist(models.Model):
     ip_address = models.GenericIPAddressField(unique=True)
     added_on = models.DateTimeField(auto_now_add=True)
     reason = models.CharField(max_length=255, default="Şüpheli davranış")
     is_active = models.BooleanField(default=True)
-    #createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+
+    # createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
 
     def __str__(self):
         return f"{self.ip_address} - {self.reason} - {'Aktif' if self.is_active else 'Pasif'}"

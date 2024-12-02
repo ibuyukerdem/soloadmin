@@ -1,7 +1,13 @@
+from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import UserSummaryView, UserDetailView
+from .views import UserViewSet, me
+
+router = DefaultRouter()
+router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
-    path('user/summary/', UserSummaryView.as_view(), name='user-summary'),
-    path('user/detail/', UserDetailView.as_view(), name='user-detail'),
+    path('me/', me, name='me'),  # Giriş yapan kullanıcı bilgilerini döndüren endpoint
 ]
+
+urlpatterns += router.urls
+
