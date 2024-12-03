@@ -7,8 +7,8 @@ from django.contrib.sites.models import Site
 
 from .forms import CustomAdminAuthenticationForm
 from .models import ExtendedSite
-from .models import Module, SiteUrun, UserSite, WebServer, SqlServer, MailServer, DnsServer, \
-    OperatingSystem, Product, Service, CustomSiteConfiguration, CustomUser, Blacklist
+from .models import SiteUrun, UserSite, WebServer, SqlServer, MailServer, DnsServer, \
+    OperatingSystem, Product, CustomSiteConfiguration, CustomUser, Blacklist
 
 
 class CustomAdminSite(AdminSite):
@@ -68,22 +68,6 @@ class ProductAdmin(admin.ModelAdmin):
     ordering = ('-createdAt',)
 
 
-@admin.register(Module)
-class ModuleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'price', 'serviceDuration', 'isActive', 'createdAt', 'updatedAt')
-    list_filter = ('isActive', 'product')
-    search_fields = ('name', 'product__name')
-    ordering = ('-createdAt',)
-
-
-@admin.register(Service)
-class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'price', 'serviceDuration', 'isActive', 'createdAt', 'updatedAt')
-    list_filter = ('isActive', 'product')
-    search_fields = ('name', 'product__name')
-    ordering = ('-createdAt',)
-
-
 @admin.register(SiteUrun)
 class SiteUrunAdmin(admin.ModelAdmin):
     list_display = ('site', 'urun_list', 'createdAt')
@@ -111,6 +95,14 @@ class SiteAdminForm(forms.ModelForm):
         label="Active",
         required=False,
     )
+    is_our_site = forms.BooleanField(
+        label="Our Site",
+        required=False,
+    )
+    show_popup_ad = forms.BooleanField(
+        label="Show Popup Ad",
+        required=False,
+    )
 
     class Meta:
         model = Site
@@ -120,39 +112,65 @@ class SiteAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk:  # Eğer bir kayıt düzenleniyorsa
             try:
-                # Mevcut ExtendedSite değerini al
-                self.fields["is_active"].initial = self.instance.extended_site.isActive
+                extended_site = self.instance.extended_site
+                self.fields["is_active"].initial = extended_site.isActive
+                self.fields["is_our_site"].initial = extended_site.isOurSite
+                self.fields["show_popup_ad"].initial = extended_site.showPopupAd
             except ExtendedSite.DoesNotExist:
                 self.fields["is_active"].initial = False
+                self.fields["is_our_site"].initial = False
+                self.fields["show_popup_ad"].initial = False
+
 
 class SiteAdmin(admin.ModelAdmin):
     form = SiteAdminForm
-    list_display = ("domain", "name", "is_active", "created_at", "updated_at")
+    list_display = ("domain", "name", "is_active", "is_our_site", "show_popup_ad", "created_at", "updated_at")
     search_fields = ("domain", "name")
 
     def is_active(self, obj):
         return obj.extended_site.isActive if hasattr(obj, "extended_site") else None
+
     is_active.boolean = True
     is_active.short_description = "Active"
 
+    def is_our_site(self, obj):
+        return obj.extended_site.isOurSite if hasattr(obj, "extended_site") else None
+
+    is_our_site.boolean = True
+    is_our_site.short_description = "Our Site"
+
+    def show_popup_ad(self, obj):
+        return obj.extended_site.showPopupAd if hasattr(obj, "extended_site") else None
+
+    show_popup_ad.boolean = True
+    show_popup_ad.short_description = "Show Popup Ad"
+
     def created_at(self, obj):
         return obj.extended_site.createdAt if hasattr(obj, "extended_site") else None
+
     created_at.short_description = "Created At"
 
     def updated_at(self, obj):
         return obj.extended_site.updatedAt if hasattr(obj, "extended_site") else None
+
     updated_at.short_description = "Updated At"
 
     def save_model(self, request, obj, form, change):
         # Site modelini kaydet
         super().save_model(request, obj, form, change)
-        # ExtendedSite için is_active değerini formdan al
+        # ExtendedSite için is_active, is_our_site ve show_popup_ad değerlerini formdan al
         is_active = form.cleaned_data.get("is_active", False)
+        is_our_site = form.cleaned_data.get("is_our_site", False)
+        show_popup_ad = form.cleaned_data.get("show_popup_ad", False)
         # ExtendedSite nesnesini oluştur veya güncelle
         extended_site, created = ExtendedSite.objects.get_or_create(site=obj)
         extended_site.isActive = is_active
+        extended_site.isOurSite = is_our_site
+        extended_site.showPopupAd = show_popup_ad
         extended_site.save()
 
+
+# Site modelinin yeniden kaydedilmesi
 admin.site.unregister(Site)
 admin.site.register(Site, SiteAdmin)
 

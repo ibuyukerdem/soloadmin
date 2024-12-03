@@ -11,5 +11,6 @@ urlpatterns = [
     path('payment/', include('solopayment.api.urls')),  # solopayment API yönlendirmesi
     path('service/', include('soloservice.api.urls')),  # soloservice API yönlendirmesi
     path('web/', include('soloweb.api.urls')),  # soloweb API yönlendirmesi
+    path('common/', include('common.api.urls')),  # common API yönlendirmesi
 
 ]

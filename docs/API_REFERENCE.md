@@ -76,3 +76,15 @@ ReDoc: http://127.0.0.1:8000/redoc/
 # API Referansı
 
 Tüm API endpoint'leri ve açıklamaları burada yer alır.
+
+---
+
+# API Referansı
+
+Tüm API endpoint'leri ve açıklamaları burada yer alır.
+
+---
+
+# API Referansı
+
+Tüm API endpoint'leri ve açıklamaları burada yer alır.

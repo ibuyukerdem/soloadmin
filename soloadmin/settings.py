@@ -66,6 +66,7 @@ LOCAL_APPS = [
     'soloweb.apps.SolowebConfig',
     'solopayment.apps.SolopaymentConfig',
     'soloblog.apps.SoloblogConfig',
+    'common.apps.CommonConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

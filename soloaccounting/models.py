@@ -1,26 +1,78 @@
+# Model Açıklaması:
+# Bu model, projemizdeki her veri kaydının bir siteyle ilişkilendirilmesini sağlamak için
+# `common.models.AbstractBaseModel` sınıfını miras alır. Bu sınıf, aşağıdaki alanları içerir:
+# 1. `site`: Kaydın hangi siteye ait olduğunu belirtir (`ForeignKey(Site)`).
+# 2. `created_at`: Kaydın oluşturulma tarihi (`DateTimeField`).
+# 3. `updated_at`: Kaydın son güncellenme tarihi (`DateTimeField`).
+#
+# AbstractBaseModel kullanılarak, tekrarlayan kodlar minimize edilmiş ve verilerin çoklu site
+# desteği için yapılandırılması sağlanmıştır.
+
+# class ExampleModel(AbstractBaseModel):
+#     """
+#     Örnek model, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
+#     """
+#     name = models.CharField(max_length=255, help_text="Modelin adı")
+#     description = models.TextField(help_text="Modelin açıklaması")
+#
+#     def __str__(self):
+#         return self.name
+
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
-from django.contrib.sites.models import Site
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from common.models import AbstractBaseModel
 
+
+# Site modeli burada genişletiliyor
 class ExtendedSite(models.Model):
-    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="extended_site")
-    createdAt = models.DateTimeField(_("created at"), auto_now_add=True)
-    updatedAt = models.DateTimeField(_("updated at"), auto_now=True)
-    isActive = models.BooleanField(_("active"), default=True)
+    site = models.OneToOneField(
+        Site,
+        on_delete=models.CASCADE,
+        related_name="extended_site",
+        verbose_name="Site",
+        help_text="Bağlı olduğu siteyi seçin."
+    )
+    createdAt = models.DateTimeField(
+        "Oluşturulma Tarihi",
+        auto_now_add=True,
+        help_text="Kayıt oluşturulma tarihi otomatik olarak eklenir."
+    )
+    updatedAt = models.DateTimeField(
+        "Güncellenme Tarihi",
+        auto_now=True,
+        help_text="Son güncellenme tarihi otomatik olarak eklenir."
+    )
+    isActive = models.BooleanField(
+        "Aktif",
+        default=True,
+        help_text="Bu site aktif mi? Aktif olmayan siteler listelerde gösterilmez."
+    )
+    isOurSite = models.BooleanField(
+        "Bizim Sitemiz",
+        default=False,
+        help_text="Bu site bizim tarafımızdan kontrol ediliyorsa işaretleyin."
+    )
+    showPopupAd = models.BooleanField(
+        "Pop-up Reklam Gösterimi",
+        default=False,
+        help_text="Bu sitede pop-up reklam göstermek istiyorsanız işaretleyin."
+    )
 
     class Meta:
-        verbose_name = _("extended site")
-        verbose_name_plural = _("extended sites")
+        verbose_name = "Genişletilmiş Site"
+        verbose_name_plural = "Genişletilmiş Siteler"
 
     def __str__(self):
         return self.site.name
 
 
+# User tablosunu burada genişletiyoruz
 class CustomUser(AbstractUser):
     phoneNumber = models.CharField(max_length=15, blank=True, null=True, verbose_name='Telefon Numarası')
     mobilePhone = models.CharField(max_length=15, blank=True, null=True, verbose_name='Mobil Telefon')
@@ -30,17 +82,32 @@ class CustomUser(AbstractUser):
     district = models.CharField(max_length=100, blank=True, null=True, verbose_name='İlçe')
     country = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ülke')
     dateOfBirth = models.DateField(blank=True, null=True, verbose_name='Doğum Tarihi')
-    profilePicture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True,
-                                       verbose_name='Profil Resmi')
+    profilePicture = models.ImageField(
+        upload_to='profile_pictures/',
+        blank=True,
+        null=True,
+        verbose_name='Profil Resmi'
+    )
     isIndividual = models.BooleanField(default=True, verbose_name='Kurumsal Fatura İstiyorum')
-    identificationNumber = models.CharField(max_length=20, blank=True, null=True,
-                                            verbose_name='TC Kimlik/Vergi Numarası')
+    identificationNumber = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='TC Kimlik/Vergi Numarası'
+    )
     taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
     companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
     isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
     secretQuestion = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Soru')
     secretAnswer = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Cevap')
-    site = models.ForeignKey(Site, on_delete=models.SET_NULL, blank=True, null=True, verbose_name='Site')
+    site = models.ForeignKey(
+        Site,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Site',
+        help_text="Bu kullanıcının hangi siteye ait olduğunu belirtir."
+    )
     smsPermission = models.BooleanField(default=False, verbose_name='SMS İzni')
     digitalMarketingPermission = models.BooleanField(default=False, verbose_name='Dijital Pazarlama İzni')
     kvkkPermission = models.BooleanField(default=False, verbose_name='KVKK İzni')
@@ -67,7 +134,11 @@ class CustomUser(AbstractUser):
         return self.username
 
 
-class Product(models.Model):
+# ürünlerimizi burada tanımlıyoruz
+class Product(AbstractBaseModel):
+    """
+    Product modeli, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
+    """
     name = models.CharField(max_length=255, unique=True, verbose_name="Ürün Adı", help_text="Ürün adını belirtiniz.")
     description = models.TextField(null=True, blank=True, verbose_name="Ürün Açıklaması",
                                    help_text="Ürün ile ilgili açıklama.")
@@ -77,8 +148,6 @@ class Product(models.Model):
                                 help_text="Ürün fiyatını belirtiniz.")
     isActive = models.BooleanField(default=True, verbose_name="Aktif",
                                    help_text="Ürünün aktif/pasif durumunu belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "Ürün"
@@ -88,69 +157,9 @@ class Product(models.Model):
         return self.name
 
 
-# bu tablo yazılımların modüllerini oluşturmalı
-class Module(models.Model):
-    product = models.ForeignKey(
-        'Product',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='modules',
-        verbose_name="Ürün",
-        help_text="Bu modüle ait bir ürün seçin (isteğe bağlı)."
-    )
-    name = models.CharField(max_length=255, unique=True, verbose_name="Modül Adı")
-    description = models.TextField(null=True, blank=True, verbose_name="Modül Açıklaması")
-    serviceDuration = models.PositiveIntegerField(verbose_name="Hizmet Süresi (Ay)",
-                                                  help_text="Hizmet süresi ay cinsinden belirtilmelidir.")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Fiyat",
-                                help_text="Modül fiyatını belirtiniz.")
-    isActive = models.BooleanField(default=True, verbose_name="Aktif",
-                                   help_text="Modülün aktif/pasif durumunu belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
-
-    class Meta:
-        verbose_name = "Modül"
-        verbose_name_plural = "Modüller"
-
-    def __str__(self):
-        return self.name
-
-
-# bu tabloya web tasarımı, teknik destek, hosting gibi hizmetler eklenebilir
-class Service(models.Model):
-    product = models.ForeignKey(
-        'Product',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='services',
-        verbose_name="Ürün",
-        help_text="Bu hizmete ait bir ürün seçin (isteğe bağlı)."
-    )
-    name = models.CharField(max_length=255, verbose_name="Hizmet Adı", help_text="Hizmetin adını belirtiniz.")
-    description = models.TextField(null=True, blank=True, verbose_name="Hizmet Açıklaması",
-                                   help_text="Hizmet ile ilgili açıklama.")
-    serviceDuration = models.PositiveIntegerField(verbose_name="Hizmet Süresi (Ay)",
-                                                  help_text="Hizmet süresi ay cinsinden belirtilmelidir.")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Hizmet Fiyatı",
-                                help_text="Hizmet fiyatını belirtiniz.")
-    isActive = models.BooleanField(default=True, verbose_name="Aktif",
-                                   help_text="Hizmetin aktif/pasif durumunu belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
-
-    class Meta:
-        verbose_name = "Hizmet"
-        verbose_name_plural = "Hizmetler"
-
-    def __str__(self):
-        return self.name
-
-
+# bu model ile sitelerin ürün eşleşmeleri yapılıyor bir siteye birden falla ürün eklenebilir hale geliyor
 class SiteUrun(models.Model):
-    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="module", verbose_name="Site")
+    site = models.OneToOneField(Site, on_delete=models.CASCADE, related_name="urunSite", verbose_name="Site")
     urun = models.ManyToManyField(Product, related_name="siteUrun", verbose_name="Ürünler")
     createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
 
@@ -162,11 +171,18 @@ class SiteUrun(models.Model):
         return f"{self.site.name} - {', '.join([urun.name for urun in self.urun.all()])}"
 
 
-class UserSite(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="userSites",
-                             verbose_name="Kullanıcı")
-    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name="userSites", verbose_name="Site")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+# kullanıcıların belirli sitelerle olan ilişkisi burada tanımlıyoruz
+class UserSite(AbstractBaseModel):
+    """
+    UserSite modeli, kullanıcıların belirli sitelerle olan ilişkisini temsil eder.
+    AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarını içerir.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="userSites",
+        verbose_name="Kullanıcı"
+    )
 
     class Meta:
         verbose_name = "Kullanıcı-Site İlişkisi"
@@ -176,12 +192,14 @@ class UserSite(models.Model):
         return f"{self.user.username} - {self.site.name}"
 
 
-class OperatingSystem(models.Model):
+# Server işletim sistemi tanımları buraya yappılıyor
+class OperatingSystem(AbstractBaseModel):
+    """
+    OperatingSystem modeli, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
+    """
     name = models.CharField(max_length=100, verbose_name="İşletim Sistemi Adı")
     version = models.CharField(max_length=50, verbose_name="Versiyon", null=True, blank=True)
     description = models.TextField(verbose_name="Açıklama", null=True, blank=True)
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "S-İşletim Sistemi"
@@ -196,7 +214,8 @@ class PaymentType(models.TextChoices):
     YEARLY = "Yearly", "Yıllık"
 
 
-class WebServer(models.Model):
+# Web sunucularımızı buraya tanımlıyoruz
+class WebServer(AbstractBaseModel):
     operatingSystem = models.ForeignKey(
         OperatingSystem, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="İşletim Sistemi"
     )
@@ -219,8 +238,6 @@ class WebServer(models.Model):
                                    help_text="Sunucunun aktif/pasif durumunu belirtir.")
     isDefault = models.BooleanField(default=False, verbose_name="Varsayılan",
                                     help_text="Bu sunucunun varsayılan olup olmadığını belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "S-Web Sunucusu"
@@ -230,7 +247,8 @@ class WebServer(models.Model):
         return f"{self.domain} - {self.ipAddress1} Web Sunucusu"
 
 
-class SqlServer(models.Model):
+# SQL sunucularımızı buraya tanımlıyoruz
+class SqlServer(AbstractBaseModel):
     operatingSystem = models.ForeignKey(
         OperatingSystem, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="İşletim Sistemi"
     )
@@ -253,8 +271,6 @@ class SqlServer(models.Model):
                                    help_text="Sunucunun aktif/pasif durumunu belirtir.")
     isDefault = models.BooleanField(default=False, verbose_name="Varsayılan",
                                     help_text="Bu sunucunun varsayılan olup olmadığını belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "S-SQL Sunucusu"
@@ -264,7 +280,8 @@ class SqlServer(models.Model):
         return f"{self.domain} - {self.ipAddress1} SQL Sunucusu"
 
 
-class MailServer(models.Model):
+# mail sunucularımzı buraya tanımlıyoruz
+class MailServer(AbstractBaseModel):
     operatingSystem = models.ForeignKey(
         OperatingSystem, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="İşletim Sistemi"
     )
@@ -287,8 +304,6 @@ class MailServer(models.Model):
                                    help_text="Sunucunun aktif/pasif durumunu belirtir.")
     isDefault = models.BooleanField(default=False, verbose_name="Varsayılan",
                                     help_text="Bu sunucunun varsayılan olup olmadığını belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "S-Mail Sunucusu"
@@ -298,7 +313,8 @@ class MailServer(models.Model):
         return f"{self.domain} - {self.ipAddress1} Mail Sunucusu"
 
 
-class DnsServer(models.Model):
+# DNS sunucularımızı buraya tınımlıyoruz
+class DnsServer(AbstractBaseModel):
     operatingSystem = models.ForeignKey(
         OperatingSystem, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="İşletim Sistemi"
     )
@@ -321,8 +337,6 @@ class DnsServer(models.Model):
                                    help_text="Sunucunun aktif/pasif durumunu belirtir.")
     isDefault = models.BooleanField(default=False, verbose_name="Varsayılan",
                                     help_text="Bu sunucunun varsayılan olup olmadığını belirtir.")
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
 
     class Meta:
         verbose_name = "S-DNS Sunucusu"
@@ -332,13 +346,8 @@ class DnsServer(models.Model):
         return f"{self.domain} - {self.ipAddress1} DNS Sunucusu"
 
 
-class CustomSiteConfiguration(models.Model):
-    site = models.OneToOneField(
-        Site,
-        on_delete=models.CASCADE,
-        related_name="configuration",
-        verbose_name="Site"
-    )
+# site sunucu eşleşmelerei burada yapılıyor
+class CustomSiteConfiguration(AbstractBaseModel):
     webServer = models.ForeignKey(
         WebServer,
         on_delete=models.CASCADE,
@@ -372,9 +381,6 @@ class CustomSiteConfiguration(models.Model):
         blank=True
     )
 
-    createdAt = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
-    updatedAt = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
-
     class Meta:
         verbose_name = "Site Konfigürasyonu"
         verbose_name_plural = "Site Konfigürasyonları"
@@ -383,6 +389,7 @@ class CustomSiteConfiguration(models.Model):
         return f"{self.site.name} Konfigürasyonu"
 
 
+# middleware ile ip kontrolü
 class Blacklist(models.Model):
     ip_address = models.GenericIPAddressField(unique=True)
     added_on = models.DateTimeField(auto_now_add=True)
@@ -393,3 +400,5 @@ class Blacklist(models.Model):
 
     def __str__(self):
         return f"{self.ip_address} - {self.reason} - {'Aktif' if self.is_active else 'Pasif'}"
+
+

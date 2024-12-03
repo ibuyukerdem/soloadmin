@@ -219,3 +219,15 @@ Semantik Versiyonlama (Semantic Versioning) prensiplerini uygulayarak, versiyon 
 
 - **PATCH versiyon (1.1.1 → 1.1.2):**  
   Geriye dönük uyumlu hata düzeltmeleri.
+
+---
+
+# Geliştirici Rehberi
+
+Kod yapısı ve test süreçleri burada açıklanır.
+
+---
+
+# Geliştirici Rehberi
+
+Kod yapısı ve test süreçleri burada açıklanır.
