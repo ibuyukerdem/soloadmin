@@ -15,7 +15,7 @@ router.register(r'advertisements', AdvertisementViewSet, basename='advertisement
 router.register(r'visitor-analytics', VisitorAnalyticsViewSet, basename='visitor-analytics')
 # URL Patterns
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
     path('sites/<int:site_id>/detailed-report/', SiteDetailedReportAPIView.as_view(), name='site_detailed_report'),
     path('sites/<int:site_id>/referer-report/', SiteRefererAPIView.as_view(), name='site_referer_report'),
     path('sites/<int:site_id>/traffic-report/', SiteTrafficAPIView.as_view(), name='site_traffic_report'),

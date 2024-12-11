@@ -18,6 +18,51 @@ class AbstractBaseModel(models.Model):
     class Meta:
         abstract = True
 
+class WhatsAppSettings(AbstractBaseModel):
+    apiUrl = models.URLField(max_length=500, verbose_name="WhatsApp API URL")
+    phoneNumber = models.CharField(max_length=20, verbose_name="Telefon Numarası")
+    apiKey = models.CharField(max_length=255, verbose_name="API Anahtarı")
+    kontorMiktari = models.PositiveIntegerField(verbose_name="Kontör Miktarı", default=0)
+
+    class Meta:
+        verbose_name = "WhatsApp Ayarı"
+        verbose_name_plural = "A-WhatsApp Ayarları"
+        db_table = "whatsapp_settings"
+
+    def __str__(self):
+        return f"{self.site.domain} WhatsApp Ayarları"
+
+class SmsSettings(AbstractBaseModel):
+    url = models.URLField(max_length=500, verbose_name="SMS API URL")
+    username = models.CharField(max_length=255, verbose_name="Kullanıcı Adı")
+    password = models.CharField(max_length=255, verbose_name="Şifre")
+    kontorMiktari = models.PositiveIntegerField(verbose_name="Kontör Miktarı", default=0)
+
+    class Meta:
+        verbose_name = "SMS Ayarı"
+        verbose_name_plural = "A-SMS Ayarları"
+        db_table = "sms_settings"
+
+    def __str__(self):
+        return f"{self.site.domain} SMS Ayarları"
+
+class SmtpSettings(AbstractBaseModel):
+    emailAddress = models.EmailField(max_length=255, verbose_name="Gönderici E-posta Adresi")
+    smtpServer = models.CharField(max_length=255, verbose_name="SMTP Sunucusu")
+    smtpPort = models.PositiveIntegerField(verbose_name="SMTP Portu", default=587)
+    username = models.CharField(max_length=255, verbose_name="Kullanıcı Adı")
+    password = models.CharField(max_length=255, verbose_name="Şifre")
+    useTls = models.BooleanField(default=True, verbose_name="TLS Kullanımı")
+    useSsl = models.BooleanField(default=False, verbose_name="SSL Kullanımı")
+
+    class Meta:
+        verbose_name = "SMTP Ayarı"
+        verbose_name_plural = "A-SMTP Ayarları"
+        db_table = "smtp_settings"
+
+    def __str__(self):
+        return f"{self.site.domain} SMTP Ayarları"
+
 class GoogleApplicationsIntegration(AbstractBaseModel):
     """
     Google Webmasters, Analytics, Tag Manager, Adsense gibi Google uygulamaları için

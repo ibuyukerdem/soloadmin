@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from common.models import GoogleApplicationsIntegration, SiteSettings
 
+
+
 class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SiteSettings

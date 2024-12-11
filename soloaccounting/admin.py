@@ -1,14 +1,17 @@
+import os
+
 from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.sites.models import Site
+from django.utils.timezone import localtime
 
 from .forms import CustomAdminAuthenticationForm
 from .models import ExtendedSite
-from .models import SiteUrun, UserSite, WebServer, SqlServer, MailServer, DnsServer, \
-    OperatingSystem, Product, CustomSiteConfiguration, CustomUser, Blacklist
+from .models import SiteUrun, WebServer, SqlServer, MailServer, DnsServer, \
+    OperatingSystem, Product, CustomSiteConfiguration, CustomUser, Blacklist, Menu, UserSite
 
 
 class CustomAdminSite(AdminSite):
@@ -30,7 +33,22 @@ admin.site.site_title = getattr(settings, 'ADMIN_SITE_TITLE', 'Django Yönetim P
 admin.site.index_title = getattr(settings, 'ADMIN_INDEX_TITLE', 'Hoş Geldiniz!')
 
 
+# Form Özelleştirmesi: dealerID yalnızca bayi olan kullanıcıları gösterecek
+class CustomUserForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # dealerID alanını özelleştiriyoruz
+        self.fields['dealerID'].queryset = CustomUser.objects.filter(isDealer=True)
+
+
+# CustomUserAdmin sınıfını özelleştiriyoruz
 class CustomUserAdmin(UserAdmin):
+    form = CustomUserForm  # Formu özelleştirilmiş form ile bağlama
+
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('Personal Info', {'fields': (
@@ -39,20 +57,22 @@ class CustomUserAdmin(UserAdmin):
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important Dates', {'fields': ('last_login', 'date_joined')}),
         ('Additional Info', {'fields': (
-            'isIndividual', 'identificationNumber', 'taxOffice', 'isEfatura', 'secretQuestion', 'secretAnswer', 'site',
-            'smsPermission', 'digitalMarketingPermission', 'kvkkPermission')}),
+            'isIndividual', 'identificationNumber', 'taxOffice', 'isEfatura', 'secretQuestion', 'secretAnswer',
+            'smsPermission', 'digitalMarketingPermission', 'kvkkPermission', 'isDealer', 'dealerID', 'discountRate')}),
     )
 
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email')
+            'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'isDealer', 'dealerID',
+                       'discountRate')
         }),
     )
 
     list_display = (
-        'username', 'email', 'first_name', 'last_name', 'is_active', 'isIndividual', 'isEfatura', 'smsPermission',
-        'digitalMarketingPermission', 'kvkkPermission')
+        'username', 'email', 'first_name', 'last_name', 'is_active', 'isIndividual', 'isEfatura',
+        'smsPermission', 'digitalMarketingPermission', 'kvkkPermission', 'isDealer', 'dealerID', 'discountRate'
+    )
     search_fields = ('username', 'first_name', 'last_name', 'email', 'phoneNumber', 'mobilePhone')
     ordering = ('username',)
 
@@ -62,10 +82,82 @@ admin.site.register(CustomUser, CustomUserAdmin)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'serviceDuration', 'isActive', 'createdAt', 'updatedAt')
-    list_filter = ('isActive',)
-    search_fields = ('name',)
-    ordering = ('-createdAt',)
+    list_display = ('name', 'price', 'serviceDuration', 'isActive', 'slug', 'createDate', 'updateDate')
+    list_filter = ('isActive', 'createDate', 'updateDate')  # Filtreleme alanları
+    search_fields = ('name', 'description')  # Arama alanları
+    ordering = ('-createDate',)  # Varsayılan sıralama (Oluşturulma tarihine göre azalan)
+    readonly_fields = ('createDate', 'updateDate', 'slug')  # Sadece okunabilir alanlar
+
+
+class MenuAdminForm(forms.ModelForm):
+    ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("manager", "Manager"),
+        ("superuser", "Superuser"),
+    ]
+
+    roles = forms.MultipleChoiceField(
+        choices=ROLE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Roles"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if isinstance(self.instance.roles, list):
+            self.fields["roles"].initial = self.instance.roles
+
+    def clean_roles(self):
+        return self.cleaned_data.get("roles", [])
+
+    class Meta:
+        model = Menu
+        fields = "__all__"
+
+
+@admin.register(Menu)
+class MenuAdmin(admin.ModelAdmin):
+    form = MenuAdminForm
+    list_display = (
+        'title',
+        'path',
+        'icon',
+        'caption',
+        'parent',
+        'product',
+        'order',
+        'is_superuser_only',
+        'disabled',
+        'external'
+    )  # `id` list_display'den kaldırıldı
+    search_fields = ('title', 'path', 'icon', 'caption')  # Arama alanları
+    list_filter = ('parent', 'product', 'is_superuser_only', 'disabled', 'external')  # Filtreleme
+    ordering = ('order',)  # Sıralama
+    fieldsets = (
+        (None, {
+            'fields': (
+                'title',
+                'path',
+                'icon',
+                'caption',
+                'parent',
+                'product',
+                'order'
+            )
+        }),
+        ('Visibility & Access', {
+            'fields': (
+                'is_superuser_only',
+                'roles',
+                'disabled',
+                'external'
+            )
+        }),
+        ('Metadata', {
+            'fields': ('info',)
+        }),
+    )
 
 
 @admin.register(SiteUrun)
@@ -81,96 +173,165 @@ class SiteUrunAdmin(admin.ModelAdmin):
     urun_list.short_description = "Ürünler"
 
 
-@admin.register(UserSite)
-class UserSiteAdmin(admin.ModelAdmin):
-    list_display = ('user', 'site', 'createdAt')
-    search_fields = ('user__username', 'site__name', 'site__domain')
-    list_filter = ('site', 'createdAt')
-    ordering = ('-createdAt',)
-    autocomplete_fields = ('site',)
+def safe_remove(file_path):
+    """
+    Dosyayı güvenli bir şekilde siler. Dosya mevcut değilse hata vermez.
+    """
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        print(f"Silindi: {file_path}")
 
 
 class SiteAdminForm(forms.ModelForm):
-    is_active = forms.BooleanField(
-        label="Active",
-        required=False,
-    )
-    is_our_site = forms.BooleanField(
-        label="Our Site",
-        required=False,
-    )
-    show_popup_ad = forms.BooleanField(
-        label="Show Popup Ad",
-        required=False,
-    )
+    """
+    Site admini için form.
+    """
+    is_active = forms.BooleanField(label="Aktif", required=False)
+    is_our_site = forms.BooleanField(label="Bizim Sitemiz", required=False)
+    is_default_site = forms.BooleanField(label="Varsayılan Site", required=False)
+    show_popup_ad = forms.BooleanField(label="Pop-up Reklam Gösterimi", required=False)
+    logo = forms.ImageField(label="Site Logosu", required=False)
+
+    def clean_logo(self):
+        """
+        Admin panelinden 'logo' alanı temizlendiğinde fiziksel dosyayı da siler ve veritabanı kaydını temizler.
+        """
+        logo = self.cleaned_data.get("logo", None)
+
+        # ExtendedSite ile bağlantılı olan logo alanını kontrol edin
+        if self.instance.pk:
+            extended_site = getattr(self.instance, "extended_site", None)
+            if extended_site and not logo and extended_site.logo:
+                # Logo temizlenmişse fiziksel dosyayı sil
+                safe_remove(extended_site.logo.path)
+                extended_site.logo = None  # Veritabanındaki logo alanını temizle
+                extended_site.save()  # Değişiklikleri kaydet
+
+        return logo
 
     class Meta:
         model = Site
         fields = "__all__"
 
+    def clean_logo(self):
+        """
+        Admin panelinden 'logo' alanı temizlendiğinde fiziksel dosyayı da siler ve veritabanı kaydını temizler.
+        """
+        logo = self.cleaned_data.get("logo", None)
+
+        # ExtendedSite ile bağlantılı olan logo alanını kontrol edin
+        if self.instance.pk:
+            extended_site = getattr(self.instance, "extended_site", None)
+            if extended_site and not logo and extended_site.logo:
+                # Logo temizlenmişse fiziksel dosyayı sil
+                safe_remove(extended_site.logo.path)
+                extended_site.logo = None  # Veritabanındaki logo alanını temizle
+                extended_site.save()  # Değişiklikleri kaydet
+
+        return logo
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.pk:  # Eğer bir kayıt düzenleniyorsa
-            try:
-                extended_site = self.instance.extended_site
-                self.fields["is_active"].initial = extended_site.isActive
-                self.fields["is_our_site"].initial = extended_site.isOurSite
-                self.fields["show_popup_ad"].initial = extended_site.showPopupAd
-            except ExtendedSite.DoesNotExist:
-                self.fields["is_active"].initial = False
-                self.fields["is_our_site"].initial = False
-                self.fields["show_popup_ad"].initial = False
+        extended_site = getattr(self.instance, "extended_site", None)
+        if extended_site:
+            self.fields["is_active"].initial = extended_site.isActive
+            self.fields["is_our_site"].initial = extended_site.isOurSite
+            self.fields["is_default_site"].initial = extended_site.isDefault
+            self.fields["show_popup_ad"].initial = extended_site.showPopupAd
+            if extended_site.logo:
+                self.fields["logo"].initial = extended_site.logo
 
 
 class SiteAdmin(admin.ModelAdmin):
+    """
+    Site modeli için admin yapılandırması.
+    """
     form = SiteAdminForm
-    list_display = ("domain", "name", "is_active", "is_our_site", "show_popup_ad", "created_at", "updated_at")
+    list_display = (
+        "domain", "name", "is_active", "is_our_site", "is_default", "show_popup_ad",
+        "formatted_created_at", "formatted_updated_at"  # Tarih alanları listede görünür
+    )
+    readonly_fields = ("formatted_created_at", "formatted_updated_at")  # Detay görünümünde yalnızca okunabilir alanlar
     search_fields = ("domain", "name")
 
     def is_active(self, obj):
-        return obj.extended_site.isActive if hasattr(obj, "extended_site") else None
+        return getattr(obj.extended_site, "isActive", False)
 
     is_active.boolean = True
-    is_active.short_description = "Active"
+    is_active.short_description = "Aktif"
 
     def is_our_site(self, obj):
-        return obj.extended_site.isOurSite if hasattr(obj, "extended_site") else None
+        return getattr(obj.extended_site, "isOurSite", False)
 
     is_our_site.boolean = True
-    is_our_site.short_description = "Our Site"
+    is_our_site.short_description = "Bizim Sitemiz"
+
+    def is_default(self, obj):
+        return getattr(obj.extended_site, "isDefault", False)
+
+    is_default.boolean = True
+    is_default.short_description = "Varsayılan Site"
 
     def show_popup_ad(self, obj):
-        return obj.extended_site.showPopupAd if hasattr(obj, "extended_site") else None
+        return getattr(obj.extended_site, "showPopupAd", False)
 
     show_popup_ad.boolean = True
-    show_popup_ad.short_description = "Show Popup Ad"
+    show_popup_ad.short_description = "Pop-up Reklam"
 
-    def created_at(self, obj):
-        return obj.extended_site.createdAt if hasattr(obj, "extended_site") else None
+    def logo_display(self, obj):
+        extended_site = obj.extended_site
+        if extended_site and extended_site.logo:
+            return f'<img src="{extended_site.logo.url}" style="width:48px; height:auto;" alt="Logo"/>'
+        return "Logo Yok"
 
-    created_at.short_description = "Created At"
+    logo_display.short_description = "Logo"
+    logo_display.allow_tags = True
 
-    def updated_at(self, obj):
-        return obj.extended_site.updatedAt if hasattr(obj, "extended_site") else None
+    def formatted_created_at(self, obj):
+        """
+        Oluşturulma tarihini okunabilir formatta döndürür.
+        """
+        extended_site = getattr(obj, "extended_site", None)
+        if extended_site and extended_site.createdAt:
+            return localtime(extended_site.createdAt).strftime('%d-%m-%Y %H:%M:%S')
+        return "Bilinmiyor"
 
-    updated_at.short_description = "Updated At"
+    formatted_created_at.short_description = "Oluşturulma Tarihi"
+
+    def formatted_updated_at(self, obj):
+        """
+        Güncellenme tarihini okunabilir formatta döndürür.
+        """
+        extended_site = getattr(obj, "extended_site", None)
+        if extended_site and extended_site.updatedAt:
+            return localtime(extended_site.updatedAt).strftime('%d-%m-%Y %H:%M:%S')
+        return "Bilinmiyor"
+
+    formatted_updated_at.short_description = "Güncellenme Tarihi"
 
     def save_model(self, request, obj, form, change):
-        # Site modelini kaydet
+        """
+        Site modeli kaydedildiğinde ExtendedSite modelini de günceller veya oluşturur.
+        """
         super().save_model(request, obj, form, change)
-        # ExtendedSite için is_active, is_our_site ve show_popup_ad değerlerini formdan al
-        is_active = form.cleaned_data.get("is_active", False)
-        is_our_site = form.cleaned_data.get("is_our_site", False)
-        show_popup_ad = form.cleaned_data.get("show_popup_ad", False)
-        # ExtendedSite nesnesini oluştur veya güncelle
-        extended_site, created = ExtendedSite.objects.get_or_create(site=obj)
-        extended_site.isActive = is_active
-        extended_site.isOurSite = is_our_site
-        extended_site.showPopupAd = show_popup_ad
+        extended_site, _ = ExtendedSite.objects.get_or_create(site=obj)
+        extended_site.isActive = form.cleaned_data.get("is_active", False)
+        extended_site.isOurSite = form.cleaned_data.get("is_our_site", False)
+        extended_site.isDefault = form.cleaned_data.get("is_default_site", False)
+        extended_site.showPopupAd = form.cleaned_data.get("show_popup_ad", False)
+
+        if "logo" in form.cleaned_data:
+            if not form.cleaned_data["logo"]:
+                if extended_site.logo:
+                    safe_remove(extended_site.logo.path)
+                extended_site.logo = None
+            else:
+                extended_site.logo = form.cleaned_data["logo"]
+
         extended_site.save()
 
 
-# Site modelinin yeniden kaydedilmesi
+# Site modelini yeni admin yapılandırmasıyla kaydetme
 admin.site.unregister(Site)
 admin.site.register(Site, SiteAdmin)
 
@@ -317,3 +478,11 @@ class BlacklistAdmin(admin.ModelAdmin):
         self.message_user(request, "Seçilen IP adresleri pasifleştirildi.")
 
     deactivate_ips.short_description = "Seçili IP'leri Pasifleştir"
+
+
+@admin.register(UserSite)
+class UserSiteAdmin(admin.ModelAdmin):
+    list_display = ("user", "site", "createdAt", "updatedAt")
+    list_filter = ("site", "user")
+    search_fields = ("user__username", "site__name")
+    readonly_fields = ("createdAt", "updatedAt")

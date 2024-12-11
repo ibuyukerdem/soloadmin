@@ -12,9 +12,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from common.utils import paginate_or_default
 from soloblog.models import VisitorAnalytics, Category, Article, Image, Comment, PopupAd, Advertisement
 from .serializers import CategorySerializer, ArticleSerializer, ImageSerializer, CommentSerializer, PopupAdSerializer, \
     AdvertisementSerializer, VisitorAnalyticsSerializer
+
 
 class VisitorAnalyticsViewSet(ModelViewSet):
     """
@@ -24,7 +26,7 @@ class VisitorAnalyticsViewSet(ModelViewSet):
     - Yeni bir ziyaretçi kaydı oluştur.
     - Ziyaretçi kaydını görüntüle, güncelle veya sil.
     """
-    queryset = VisitorAnalytics.objects.all()
+    queryset = VisitorAnalytics.objects.order_by('createdAt').all()
     serializer_class = VisitorAnalyticsSerializer
 
     @swagger_auto_schema(
@@ -34,7 +36,8 @@ class VisitorAnalyticsViewSet(ModelViewSet):
                 'site_id', openapi.IN_QUERY, description="Site ID'sine göre filtreleme", type=openapi.TYPE_INTEGER
             ),
             openapi.Parameter(
-                'visit_type', openapi.IN_QUERY, description="Ziyaret türüne göre filtreleme ('homepage' veya 'article')", type=openapi.TYPE_STRING
+                'visit_type', openapi.IN_QUERY,
+                description="Ziyaret türüne göre filtreleme ('homepage' veya 'article')", type=openapi.TYPE_STRING
             ),
             openapi.Parameter(
                 'start_date', openapi.IN_QUERY, description="Başlangıç tarihi (YYYY-MM-DD)", type=openapi.TYPE_STRING
@@ -62,8 +65,13 @@ class VisitorAnalyticsViewSet(ModelViewSet):
         if start_date and end_date:
             queryset = queryset.filter(visit_date__range=[start_date, end_date])
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        # Sayfalama işlemi
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -73,6 +81,7 @@ class VisitorAnalyticsViewSet(ModelViewSet):
         visitor.delete()
         return Response(status=204)
 
+
 class AdvertisementViewSet(ModelViewSet):
     """
     Reklamlar için CRUD işlemleri:
@@ -81,7 +90,7 @@ class AdvertisementViewSet(ModelViewSet):
     - Yeni bir reklam oluştur.
     - Reklam detayını görüntüle, güncelle veya sil.
     """
-    queryset = Advertisement.objects.all()
+    queryset = Advertisement.objects.order_by('createdAt').all()
     serializer_class = AdvertisementSerializer
 
     @swagger_auto_schema(
@@ -110,8 +119,7 @@ class AdvertisementViewSet(ModelViewSet):
         if position:
             queryset = queryset.filter(position=position)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
 
 class PopupAdViewSet(ModelViewSet):
@@ -122,7 +130,7 @@ class PopupAdViewSet(ModelViewSet):
     - Yeni bir reklam oluştur.
     - Reklam detayını görüntüle, güncelle veya sil.
     """
-    queryset = PopupAd.objects.all()
+    queryset = PopupAd.objects.order_by('createdAt').all()
     serializer_class = PopupAdSerializer
 
     @swagger_auto_schema(
@@ -151,8 +159,20 @@ class PopupAdViewSet(ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(isActive=is_active)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
+
+
+def apply_filters(queryset, filters):
+    """
+    Dinamik olarak verilen filtreleri queryset'e uygular.
+    :param queryset: Filtrelenecek queryset
+    :param filters: Uygulanacak filtrelerin sözlüğü (key: alan adı, value: filtre değeri)
+    :return: Filtrelenmiş queryset
+    """
+    for key, value in filters.items():
+        if value is not None:  # Boş olmayan filtreleri uygula
+            queryset = queryset.filter(**{key: value})
+    return queryset
 
 
 class CommentViewSet(ModelViewSet):
@@ -163,7 +183,7 @@ class CommentViewSet(ModelViewSet):
     - Yeni bir yorum ekle.
     - Yorum detayını görüntüle, güncelle veya sil.
     """
-    queryset = Comment.objects.all()
+    queryset = Comment.objects.order_by('createdAt').all()
     serializer_class = CommentSerializer
 
     @swagger_auto_schema(
@@ -185,21 +205,18 @@ class CommentViewSet(ModelViewSet):
         """
         Yorumları listeleme. Opsiyonel olarak site, makale ve onay durumuna göre filtreleme yapılabilir.
         """
-        site_id = self.request.query_params.get('site_id')
-        article_id = self.request.query_params.get('article_id')
-        approved = self.request.query_params.get('approved')
+        # Filtreleme için gerekli parametreler
+        filters = {
+            "site_id": self.request.query_params.get("site_id"),
+            "article_id": self.request.query_params.get("article_id"),
+            "approved": self.request.query_params.get("approved"),
+        }
 
-        queryset = self.get_queryset()
+        # Filtreleri uygula
+        queryset = apply_filters(self.get_queryset(), filters)
 
-        if site_id:
-            queryset = queryset.filter(site_id=site_id)
-        if article_id:
-            queryset = queryset.filter(article_id=article_id)
-        if approved is not None:
-            queryset = queryset.filter(approved=approved)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        # Sayfalama veya tam listeleme
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -218,7 +235,7 @@ class ImageViewSet(ModelViewSet):
     - Yeni bir resim yükle.
     - Resim detayını görüntüle, güncelle veya sil.
     """
-    queryset = Image.objects.all()
+    queryset = Image.objects.order_by('createdAt').all()
     serializer_class = ImageSerializer
 
     @swagger_auto_schema(
@@ -246,8 +263,7 @@ class ImageViewSet(ModelViewSet):
         if article_id:
             queryset = queryset.filter(article_id=article_id)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -266,7 +282,7 @@ class ArticleViewSet(ModelViewSet):
     - Yeni bir makale oluştur.
     - Makale detayını görüntüle, güncelle veya sil.
     """
-    queryset = Article.objects.all()
+    queryset = Article.objects.select_related('category', 'category__parent', 'site').order_by('createdAt').all()
     serializer_class = ArticleSerializer
 
     @swagger_auto_schema(
@@ -302,8 +318,7 @@ class ArticleViewSet(ModelViewSet):
         if featured is not None:
             queryset = queryset.filter(featured=featured)
 
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -322,7 +337,7 @@ class CategoryViewSet(ModelViewSet):
     - Yeni kategori oluştur.
     - Kategori detayını görüntüle, güncelle veya sil.
     """
-    queryset = Category.objects.all()
+    queryset = Category.objects.select_related('parent').prefetch_related('children').order_by('createdAt').all()
     serializer_class = CategorySerializer
 
     def destroy(self, request, *args, **kwargs):
@@ -352,8 +367,8 @@ class CategoryViewSet(ModelViewSet):
         queryset = self.get_queryset()
         if site_id:
             queryset = queryset.filter(site_id=site_id)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+
+        return paginate_or_default(queryset, self.get_serializer_class(), request)
 
 
 class SiteDetailedReportAPIView(APIView):
@@ -443,7 +458,7 @@ class SiteDetailedReportAPIView(APIView):
             count=Count('id')
         ).order_by('period')
 
-        return Response({'report': list(report)})
+        return paginate_or_default(report, None, request)
 
 
 class SiteRefererAPIView(APIView):
@@ -503,7 +518,7 @@ class SiteRefererAPIView(APIView):
             count=Count('id')
         ).order_by('-count')
 
-        return Response({'referers': list(referers)})
+        return paginate_or_default(referers, None, request)
 
 
 class SiteTrafficAPIView(APIView):
@@ -572,7 +587,7 @@ class SiteTrafficAPIView(APIView):
                 {"date": entry["day"].strftime('%Y-%m-%d'), "visitors": entry["count"]} for entry in daily_visitors
             ]
 
-            return Response({'daily_visitors': formatted_data})
+            return paginate_or_default(formatted_data, None, request)
 
         elif traffic_type == 'monthly':
             last_6_months = today - timedelta(days=180)
@@ -592,7 +607,7 @@ class SiteTrafficAPIView(APIView):
                 {"date": entry["month"].strftime('%Y-%m-%d'), "visitors": entry["count"]} for entry in monthly_visitors
             ]
 
-            return Response({'monthly_visitors': formatted_data})
+            return paginate_or_default(formatted_data, None, request)
 
 
 class AllSitesVisitorStatsAPIView(APIView):
@@ -680,7 +695,7 @@ class AllSitesVisitorStatsAPIView(APIView):
             ).values('site__name', 'day').annotate(
                 count=Count('id')
             ).order_by('day')
-            data['daily_visitors'] = list(daily_visitors)
+            data['daily_visitors'] = paginate_or_default(daily_visitors, None, request).data
 
         # Haftalık ziyaretçi sayıları
         if not stats_type or stats_type == 'weekly':
@@ -691,7 +706,7 @@ class AllSitesVisitorStatsAPIView(APIView):
             ).values('site__name', 'week').annotate(
                 count=Count('id')
             ).order_by('week')
-            data['weekly_visitors'] = list(weekly_visitors)
+            data['weekly_visitors'] = paginate_or_default(weekly_visitors, None, request).data
 
         # Aylık ziyaretçi sayıları
         if not stats_type or stats_type == 'monthly':
@@ -702,7 +717,7 @@ class AllSitesVisitorStatsAPIView(APIView):
             ).values('site__name', 'month').annotate(
                 count=Count('id')
             ).order_by('month')
-            data['monthly_visitors'] = list(monthly_visitors)
+            data['monthly_visitors'] = paginate_or_default(monthly_visitors, None, request).data
 
         # Yıllık ziyaretçi sayıları
         if not stats_type or stats_type == 'yearly':
@@ -713,6 +728,6 @@ class AllSitesVisitorStatsAPIView(APIView):
             ).values('site__name', 'year').annotate(
                 count=Count('id')
             ).order_by('year')
-            data['yearly_visitors'] = list(yearly_visitors)
+            data['yearly_visitors'] = paginate_or_default(yearly_visitors, None, request).data
 
         return Response(data)

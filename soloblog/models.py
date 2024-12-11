@@ -40,6 +40,9 @@ class Category(AbstractBaseModel):
         ordering = ['order']
         verbose_name = "Kategori"
         verbose_name_plural = "Kategoriler"
+        indexes = [
+            models.Index(fields=["site"]),  # Site bazlı sorgular
+        ]
 
     def clean(self):
         if self.parent and self.parent == self:
@@ -92,7 +95,7 @@ class Category(AbstractBaseModel):
         super().delete(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.site.domain} - {self.categoryName}"
+        return f"{self.categoryName}"
 
 
 # Resim dosyasını silmek için post_delete sinyali
@@ -140,12 +143,20 @@ class Article(AbstractBaseModel):
     class Meta:
         verbose_name = "Makale"
         verbose_name_plural = "Makaleler"
+        indexes = [
+            models.Index(fields=["category"]),  # Kategori bazlı sorgular için
+            models.Index(fields=["site"]),  # Site bazlı sorgular için
+            models.Index(fields=["slug"]),  # Slug bazlı sorgular için
+            models.Index(fields=["title"]),  # Başlığa göre aramalar için
+            models.Index(fields=["publicationDate"]),  # Tarih sıralama ve sorguları için
+            models.Index(fields=["site", "category"]),
+        ]
 
     def __str__(self):
-        return f"{self.site.domain}/{self.title}"
+        return f"{self.title}"
 
     def get_absolute_url(self):
-        return f"{self.site.domain}/{self.slug}"
+        return f"{self.slug}"
 
 
 # Resim dosyasını silmek için post_delete sinyali
@@ -431,6 +442,11 @@ class VisitorAnalytics(AbstractBaseModel):
     class Meta:
         verbose_name = "Ziyaretçi İstatistiği"
         verbose_name_plural = "Ziyaretçi İstatistikleri"
+        indexes = [
+            models.Index(fields=["site"]),  # site_id alanına indeks
+            models.Index(fields=["article"]),  # article_id alanına indeks
+            models.Index(fields=["visit_date"]),  # Zaman bazlı sorgular için
+        ]
 
     def save(self, *args, **kwargs):
         # Oturum süresi 15 saniyeden azsa bounce olarak kabul et

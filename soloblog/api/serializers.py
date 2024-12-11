@@ -45,18 +45,17 @@ class ImageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'resizedImage', 'createdAt', 'updatedAt']
 
-class ArticleSerializer(serializers.ModelSerializer):
+
+class ChildCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Article
-        fields = [
-            'id', 'site', 'category', 'title', 'content', 'featured', 'slider',
-            'active', 'slug', 'counter', 'meta', 'metaDescription',
-            'publicationDate', 'image', 'createdAt', 'updatedAt'
-        ]
-        read_only_fields = ['id', 'counter', 'createdAt', 'updatedAt', 'publicationDate']
+        model = Category
+        fields = ['id', 'categoryName', 'slug']
+        read_only_fields = ['id']
+
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
+    children = ChildCategorySerializer(many=True, read_only=True)
+    parent = ChildCategorySerializer(read_only=True)
 
     class Meta:
         model = Category
@@ -67,10 +66,19 @@ class CategorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'children', 'createdAt', 'updatedAt']
 
-    def get_children(self, obj):
-        # Alt kategorileri alır
-        children = obj.children.all()
-        return CategorySerializer(children, many=True).data
+
+class ArticleSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.categoryName', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
+
+    class Meta:
+        model = Article
+        fields = [
+            'id', 'site', 'category', 'category_name', 'category_slug', 'title', 'content',
+            'featured', 'slider', 'active', 'slug', 'counter', 'meta', 'metaDescription',
+            'publicationDate', 'image', 'createdAt', 'updatedAt'
+        ]
+        read_only_fields = ['id', 'counter', 'createdAt', 'updatedAt', 'publicationDate']
 
 class SiteDetailedReportSerializer(serializers.Serializer):
     period = serializers.DateTimeField()

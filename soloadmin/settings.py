@@ -16,6 +16,11 @@ DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)  # Debug modu
 ALLOWED_HOSTS = config('DJANGO_ALLOWED_HOSTS', default='', cast=lambda v: [s.strip() for s in v.split(',')])
 SECURE_SSL_REDIRECT = config('DJANGO_SECURE_SSL_REDIRECT', default=False, cast=bool)
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+
 # Ortam Değişkenine Göre Güvenlik Ayarları
 if ENV == 'production':
     SECURE_HSTS_SECONDS = 31536000  # HSTS süresi (1 yıl)
@@ -182,10 +187,30 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+if ENV == 'production':
+    # Üretim ortamı için Redis cache ayarları
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/1',  # Sunucunuzun Redis adresi ve db numarası
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            }
+        }
+    }
+else:
+    # Geliştirme ortamı için yerel bellek cache ayarları
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-sample',
+        }
+    }
 
 # Axes Ayarları
 AXES_FAILURE_LIMIT = 5
@@ -229,7 +254,7 @@ USE_TZ = True
 STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / 'soloaccounting' / 'static', ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = config('STATIC_URL', default='static/')
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = config('MEDIA_URL', default='/media/')
 
 # Varsayılan Otomatik Alan Tipi

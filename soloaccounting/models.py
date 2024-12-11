@@ -19,17 +19,42 @@
 #         return self.name
 
 
+import os
+import uuid
+
+from PIL import Image, ImageOps
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.sites.models import Site
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 
 from common.models import AbstractBaseModel
 
+ALLOWED_FORMATS = ["JPEG", "JPG", "PNG", "WEBP"]
 
-# Site modeli burada genişletiliyor
+def logo_upload_path(instance, filename):
+    directory = f'logos/site_{instance.site.id}'
+    if not os.path.exists(os.path.join(settings.MEDIA_ROOT, directory)):
+        os.makedirs(os.path.join(settings.MEDIA_ROOT, directory), exist_ok=True)
+
+    # Benzersiz bir dosya adı oluştur
+    ext = filename.split('.')[-1]  # Dosya uzantısını al
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"  # UUID ile benzersiz ad oluştur
+    return os.path.join(directory, unique_filename)
+
+
+def safe_remove(file_path):
+    """
+    Dosyayı güvenli bir şekilde siler. Dosya mevcut değilse hata vermez.
+    """
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
 class ExtendedSite(models.Model):
     site = models.OneToOneField(
         Site,
@@ -63,6 +88,17 @@ class ExtendedSite(models.Model):
         default=False,
         help_text="Bu sitede pop-up reklam göstermek istiyorsanız işaretleyin."
     )
+    isDefault = models.BooleanField(
+        "Varsayılan Site",
+        default=False,
+        help_text="Bu site varsayılan olarak seçilsin mi?"
+    )
+    logo = models.ImageField(
+        upload_to=logo_upload_path,
+        verbose_name="Site Logosu",
+        help_text="Site için bir logo yükleyin. Görüntü otomatik olarak 48x48 piksel ve kare formatına uygun hale getirilir.",
+        default="logos/default_logo.webp"
+    )
 
     class Meta:
         verbose_name = "Genişletilmiş Site"
@@ -71,83 +107,84 @@ class ExtendedSite(models.Model):
     def __str__(self):
         return self.site.name
 
+    def delete(self, *args, **kwargs):
+        """
+        Model silindiğinde logo dosyasını da fiziksel olarak siler.
+        """
+        if self.logo:
+            safe_remove(self.logo.path)  # Dosya fiziksel olarak silinir
+        super().delete(*args, **kwargs)
 
-# User tablosunu burada genişletiyoruz
-class CustomUser(AbstractUser):
-    phoneNumber = models.CharField(max_length=15, blank=True, null=True, verbose_name='Telefon Numarası')
-    mobilePhone = models.CharField(max_length=15, blank=True, null=True, verbose_name='Mobil Telefon')
-    address = models.TextField(blank=True, null=True, verbose_name='Adres')
-    postalCode = models.CharField(max_length=20, blank=True, null=True, verbose_name='Posta Kodu')
-    city = models.CharField(max_length=100, blank=True, null=True, verbose_name='Şehir')
-    district = models.CharField(max_length=100, blank=True, null=True, verbose_name='İlçe')
-    country = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ülke')
-    dateOfBirth = models.DateField(blank=True, null=True, verbose_name='Doğum Tarihi')
-    profilePicture = models.ImageField(
-        upload_to='profile_pictures/',
-        blank=True,
-        null=True,
-        verbose_name='Profil Resmi'
-    )
-    isIndividual = models.BooleanField(default=True, verbose_name='Kurumsal Fatura İstiyorum')
-    identificationNumber = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        verbose_name='TC Kimlik/Vergi Numarası'
-    )
-    taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
-    companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
-    isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
-    secretQuestion = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Soru')
-    secretAnswer = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Cevap')
-    site = models.ForeignKey(
-        Site,
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        verbose_name='Site',
-        help_text="Bu kullanıcının hangi siteye ait olduğunu belirtir."
-    )
-    smsPermission = models.BooleanField(default=False, verbose_name='SMS İzni')
-    digitalMarketingPermission = models.BooleanField(default=False, verbose_name='Dijital Pazarlama İzni')
-    kvkkPermission = models.BooleanField(default=False, verbose_name='KVKK İzni')
+    def save_model(self, request, obj, form, change):
+        """
+        Site modeli kaydedildiğinde ExtendedSite modelini de günceller veya oluşturur.
+        """
+        super().save_model(request, obj, form, change)
+        extended_site, _ = ExtendedSite.objects.get_or_create(site=obj)
+        extended_site.isActive = form.cleaned_data.get("is_active", False)
+        extended_site.isOurSite = form.cleaned_data.get("is_our_site", False)
+        extended_site.isDefault = form.cleaned_data.get("is_default_site", False)
+        extended_site.showPopupAd = form.cleaned_data.get("show_popup_ad", False)
 
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='customuser_groups',
-        blank=True,
-        verbose_name='Gruplar'
-    )
+        # Logo kontrolü: Eğer logo temizlenmişse fiziksel ve veritabanı kaydını temizle
+        if "logo" in form.cleaned_data:
+            if not form.cleaned_data["logo"]:  # Logo alanı temizlenmişse
+                safe_remove(extended_site.logo.path)
+                extended_site.logo = None
+            else:
+                extended_site.logo = form.cleaned_data["logo"]
 
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='customuser_permissions',
-        blank=True,
-        verbose_name='Kullanıcı İzinleri'
-    )
-
-    class Meta:
-        verbose_name = "Kullanıcı"
-        verbose_name_plural = "Kullanıcılar"
-
-    def __str__(self):
-        return self.username
+        extended_site.save()
 
 
-# ürünlerimizi burada tanımlıyoruz
-class Product(AbstractBaseModel):
+class Product(models.Model):
     """
-    Product modeli, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
+    Product modeli, ürünlerin temel özelliklerini barındırır.
     """
-    name = models.CharField(max_length=255, unique=True, verbose_name="Ürün Adı", help_text="Ürün adını belirtiniz.")
-    description = models.TextField(null=True, blank=True, verbose_name="Ürün Açıklaması",
-                                   help_text="Ürün ile ilgili açıklama.")
-    serviceDuration = models.PositiveIntegerField(verbose_name="Hizmet Süresi (Ay)",
-                                                  help_text="Hizmet süresi ay cinsinden belirtilmelidir.")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ürün Fiyatı",
-                                help_text="Ürün fiyatını belirtiniz.")
-    isActive = models.BooleanField(default=True, verbose_name="Aktif",
-                                   help_text="Ürünün aktif/pasif durumunu belirtir.")
+    name = models.CharField(
+        max_length=255,
+        unique=True,
+        verbose_name="Ürün Adı",
+        help_text="Ürün adını belirtiniz."
+    )
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+        verbose_name="Slug",
+        help_text="Ürünün URL'de kullanılacak kısa adı. Otomatik oluşturulur.",
+        blank=True
+    )
+    description = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Ürün Açıklaması",
+        help_text="Ürün ile ilgili açıklama."
+    )
+    serviceDuration = models.PositiveIntegerField(
+        verbose_name="Hizmet Süresi (Ay)",
+        help_text="Hizmet süresi ay cinsinden belirtilmelidir."
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Ürün Fiyatı",
+        help_text="Ürün fiyatını belirtiniz."
+    )
+    isActive = models.BooleanField(
+        default=True,
+        verbose_name="Aktif",
+        help_text="Ürünün aktif/pasif durumunu belirtir."
+    )
+    createDate = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Oluşturulma Tarihi",
+        help_text="Bu kaydın oluşturulma tarihi otomatik olarak ayarlanır."
+    )
+    updateDate = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Güncellenme Tarihi",
+        help_text="Bu kaydın son güncellenme tarihi otomatik olarak ayarlanır."
+    )
 
     class Meta:
         verbose_name = "Ürün"
@@ -155,6 +192,63 @@ class Product(AbstractBaseModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super(Product, self).save(*args, **kwargs)
+
+
+class Menu(models.Model):
+    title = models.CharField(max_length=100)
+    path = models.CharField(max_length=255, blank=True, null=True)
+    icon = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Iconify ikon adı. Örn: 'material-symbols:shopping-cart'"
+    )
+    caption = models.CharField(max_length=255, blank=True, null=True, default=None)
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, related_name='children', blank=True, null=True
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name='menus', blank=True, null=True
+    )
+    order = models.PositiveIntegerField(default=0, help_text="Menü sıralaması")
+    roles = ArrayField(
+        models.CharField(max_length=50),
+        blank=True,
+        null=True,
+        help_text="Bu menüye erişimi olan roller listesi. Örn: ['admin', 'manager']"
+    )
+    info = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        default=None,
+        help_text="Menü öğesi için bilgi (örneğin bir etiket)"
+    )
+    disabled = models.BooleanField(
+        default=False,
+        help_text="Menü öğesinin devre dışı olup olmadığını belirtir"
+    )
+    external = models.BooleanField(
+        default=False,
+        help_text="Harici bir bağlantı olup olmadığını belirtir"
+    )
+    is_superuser_only = models.BooleanField(
+        default=False,
+        help_text="Bu menü yalnızca superuser tarafından görülebilir."
+    )
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = "Menü Öğesi"
+        verbose_name_plural = "Menü Öğeleri"
+
+    def __str__(self):
+        return self.title
 
 
 # bu model ile sitelerin ürün eşleşmeleri yapılıyor bir siteye birden falla ürün eklenebilir hale geliyor
@@ -190,6 +284,75 @@ class UserSite(AbstractBaseModel):
 
     def __str__(self):
         return f"{self.user.username} - {self.site.name}"
+
+
+class CustomUser(AbstractUser):
+    phoneNumber = models.CharField(max_length=15, blank=True, null=True, verbose_name='Telefon Numarası')
+    mobilePhone = models.CharField(max_length=15, blank=True, null=True, verbose_name='Mobil Telefon')
+    address = models.TextField(blank=True, null=True, verbose_name='Adres')
+    postalCode = models.CharField(max_length=20, blank=True, null=True, verbose_name='Posta Kodu')
+    city = models.CharField(max_length=100, blank=True, null=True, verbose_name='Şehir')
+    district = models.CharField(max_length=100, blank=True, null=True, verbose_name='İlçe')
+    country = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ülke')
+    dateOfBirth = models.DateField(blank=True, null=True, verbose_name='Doğum Tarihi')
+    profilePicture = models.ImageField(
+        upload_to='profile_pictures/',
+        blank=True,
+        null=True,
+        verbose_name='Profil Resmi'
+    )
+    isIndividual = models.BooleanField(default=True, verbose_name='Kurumsal Fatura İstiyorum')
+    identificationNumber = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='TC Kimlik/Vergi Numarası'
+    )
+    taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
+    companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
+    isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
+    secretQuestion = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Soru')
+    secretAnswer = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Cevap')
+    smsPermission = models.BooleanField(default=False, verbose_name='SMS İzni')
+    digitalMarketingPermission = models.BooleanField(default=False, verbose_name='Dijital Pazarlama İzni')
+    kvkkPermission = models.BooleanField(default=False, verbose_name='KVKK İzni')
+
+    dealerID = models.ForeignKey(
+        'self',  # Modelin kendisine referans
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        limit_choices_to={'isDealer': True},  # Sadece isDealer=True olanlar
+        verbose_name='Bayi'
+    )
+    isDealer = models.BooleanField(default=False, verbose_name='Bayi Mi?')  # Bayi olup olmadığını belirtir
+    discountRate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='İskonto Oranı'
+    )  # İskonto oranı (ör. 5.25% gibi)
+
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='customuser_groups',
+        blank=True,
+        verbose_name='Gruplar'
+    )
+
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='customuser_permissions',
+        blank=True,
+        verbose_name='Kullanıcı İzinleri'
+    )
+
+    class Meta:
+        verbose_name = "Kullanıcı"
+        verbose_name_plural = "Kullanıcılar"
+
+    def __str__(self):
+        return self.username
 
 
 # Server işletim sistemi tanımları buraya yappılıyor
@@ -400,5 +563,3 @@ class Blacklist(models.Model):
 
     def __str__(self):
         return f"{self.ip_address} - {self.reason} - {'Aktif' if self.is_active else 'Pasif'}"
-
-
