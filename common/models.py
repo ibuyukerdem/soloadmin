@@ -1,6 +1,12 @@
+import hashlib
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.contrib.sites.models import Site
+from django.contrib.auth.models import User
+from .utils.hash_key_manager import HashKeyManager
+from zoneinfo import available_timezones
 
+#common/models.py
 class AbstractBaseModel(models.Model):
     """
     Tüm modellerde tekrar eden site bağlantısını ve
@@ -17,6 +23,67 @@ class AbstractBaseModel(models.Model):
 
     class Meta:
         abstract = True
+
+class LogEntry(models.Model):
+    """
+    İşlem loglarını saklayan model.
+    """
+    site = models.ForeignKey(
+        Site,
+        on_delete=models.CASCADE,
+        related_name="log_entries",
+        help_text="Logun ait olduğu site"
+    )
+    user = models.CharField(max_length=150, null=True, blank=True, help_text="İşlemi yapan kullanıcı")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="Kullanıcının IP adresi")
+    browser = models.CharField(max_length=150, null=True, blank=True, help_text="Kullanıcının tarayıcısı")
+    operating_system = models.CharField(max_length=150, null=True, blank=True, help_text="Kullanıcının işletim sistemi")
+    model_name = models.CharField(max_length=150, help_text="İşlem yapılan model")
+    operation = models.CharField(max_length=50, help_text="Yapılan işlem (CREATE, UPDATE, DELETE, vb.)")
+    hashed_data = models.TextField(null=True, blank=True, help_text="Hash'lenmiş işlem verisi")
+    previous_hashed_data = models.TextField(null=True, blank=True, help_text="Bir önceki kaydın hash'lenmiş verisi")
+    original_data = models.JSONField(null=True, blank=True, help_text="Orijinal veri")
+    status = models.CharField(max_length=50, default='Başarılı', help_text="İşlem durumu")
+    timestamp = models.DateTimeField(auto_now_add=True, help_text="İşlem zamanı")
+
+    def save(self, *args, **kwargs):
+        """
+        Hash zincirini oluştur ve kaydet.
+        """
+        # Bir önceki kaydı al
+        previous_log = LogEntry.objects.filter(site=self.site).order_by('-timestamp').first()
+        self.previous_hashed_data = previous_log.hashed_data if previous_log else None
+
+        # Hash girdisi oluştur
+        current_key = HashKeyManager.get_key_for_timestamp(self.timestamp)  # Dinamik anahtar alınır
+        hash_input = {
+            "site": self.site.id,
+            "user": self.user,
+            "ip_address": self.ip_address,
+            "browser": self.browser,
+            "operating_system": self.operating_system,
+            "model_name": self.model_name,
+            "operation": self.operation,
+            "previous_hashed_data": self.previous_hashed_data,
+            "original_data": self.original_data,
+            "timestamp": str(self.timestamp),
+            "current_key": current_key,  # Anahtar dahil edilir
+        }
+        self.hashed_data = self.hash_data(hash_input)
+
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def hash_data(data):
+        """
+        Veriyi hash'lemek için yardımcı fonksiyon.
+        """
+        if data:
+            # Hash girdisini sıralı bir string haline getir
+            hash_input_string = str(sorted(data.items()))
+            return hashlib.sha256(hash_input_string.encode('utf-8')).hexdigest()
+        return None
+
 
 class WhatsAppSettings(AbstractBaseModel):
     apiUrl = models.URLField(max_length=500, verbose_name="WhatsApp API URL")
@@ -168,3 +235,109 @@ class SiteSettings(AbstractBaseModel):
     class Meta:
         verbose_name = "Site Ayarları"
         verbose_name_plural = "Site Ayarları"
+
+# common/models.py
+class CustomUser(AbstractUser):
+    phoneNumber = models.CharField(max_length=15, blank=True, null=True, verbose_name='Telefon Numarası')
+    mobilePhone = models.CharField(max_length=15, blank=True, null=True, verbose_name='Mobil Telefon')
+    address = models.TextField(blank=True, null=True, verbose_name='Adres')
+    postalCode = models.CharField(max_length=20, blank=True, null=True, verbose_name='Posta Kodu')
+    city = models.CharField(max_length=100, blank=True, null=True, verbose_name='Şehir')
+    district = models.CharField(max_length=100, blank=True, null=True, verbose_name='İlçe')
+    country = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ülke')
+    dateOfBirth = models.DateField(blank=True, null=True, verbose_name='Doğum Tarihi')
+    profilePicture = models.ImageField(
+        upload_to='profile_pictures/',
+        blank=True,
+        null=True,
+        verbose_name='Profil Resmi'
+    )
+    isIndividual = models.BooleanField(default=False, verbose_name='Kurumsal Fatura İstiyorum')
+    identificationNumber = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name='TC Kimlik/Vergi Numarası'
+    )
+    taxOffice = models.CharField(max_length=100, blank=True, null=True, verbose_name='Vergi Dairesi')
+    companyName = models.CharField(max_length=255, blank=True, null=True, verbose_name='Şirket/Kuruluş Adı')
+    isEfatura = models.BooleanField(default=False, verbose_name='e-Fatura Mükellefi')
+    secretQuestion = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Soru')
+    secretAnswer = models.CharField(max_length=255, blank=True, null=True, verbose_name='Gizli Cevap')
+    smsPermission = models.BooleanField(default=False, verbose_name='SMS İzni')
+    digitalMarketingPermission = models.BooleanField(default=False, verbose_name='Dijital Pazarlama İzni')
+    kvkkPermission = models.BooleanField(default=False, verbose_name='KVKK İzni')
+
+    timezone = models.CharField(
+        max_length=50,
+        choices=[(tz, tz) for tz in sorted(available_timezones())],
+        default="Europe/Istanbul",
+        verbose_name="Saat Dilimi"
+    )
+
+    preferred_language = models.CharField(
+        max_length=10,
+        default="en",
+        choices=[
+            ('en', 'English'),
+            ('tr', 'Türkçe'),
+            ('de', 'Deutsch'),
+            ('fr', 'Français'),
+            ('nl', 'Nederlands'),
+            ('ar', 'العربية'),
+        ],
+        verbose_name="Tercih Edilen Dil"
+    )
+
+    selectedSite = models.ForeignKey(
+        Site,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name="Aktif Seçilen Site"
+    )
+
+    dealerID = models.ForeignKey(
+        'self',  # Modelin kendisine referans
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        limit_choices_to={'isDealer': True},  # Sadece isDealer=True olanlar
+        verbose_name='Bayi'
+    )
+    dealer_segment = models.ForeignKey(
+        'soloaccounting.DealerSegment',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name="Bayi Segmenti",
+        default=None
+    )
+    isDealer = models.BooleanField(default=False, verbose_name='Bayi Mi?')  # Bayi olup olmadığını belirtir
+    discountRate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='İskonto Oranı'
+    )  # İskonto oranı (ör. 5.25% gibi)
+
+    groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='CustomUser_groups',
+        blank=True,
+        verbose_name='Gruplar'
+    )
+
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        related_name='CustomUser_permissions',
+        blank=True,
+        verbose_name='Kullanıcı İzinleri'
+    )
+
+    class Meta:
+        verbose_name = "Kullanıcı"
+        verbose_name_plural = "Kullanıcılar"
+
+    def __str__(self):
+        return self.username

@@ -1,6 +1,9 @@
+from django.utils.formats import date_format
 from rest_framework import serializers
 
+from common.base_serializer import BaseOnlyDateSerializer
 from soloblog.models import Category, Article, Image, Comment, PopupAd, Advertisement, VisitorAnalytics
+
 
 class VisitorAnalyticsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,6 +15,7 @@ class VisitorAnalyticsSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'is_bounce', 'createdAt', 'updatedAt']
 
+
 class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
@@ -19,6 +23,7 @@ class AdvertisementSerializer(serializers.ModelSerializer):
             'id', 'site', 'position', 'image', 'link', 'createdAt', 'updatedAt'
         ]
         read_only_fields = ['id', 'createdAt', 'updatedAt']
+
 
 class PopupAdSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,6 +33,7 @@ class PopupAdSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'createdAt', 'updatedAt']
 
+
 class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
@@ -35,7 +41,8 @@ class CommentSerializer(serializers.ModelSerializer):
             'id', 'site', 'article', 'approved', 'firstName', 'lastName',
             'email', 'phoneNumber', 'rating', 'content', 'ip', 'createdAt', 'updatedAt'
         ]
-        read_only_fields = ['id', 'ip', 'createdAt', 'updatedAt']
+        read_only_fields = ['id', 'ip', 'createdAt', 'updatedAt', 'site']
+
 
 class ImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,10 +71,10 @@ class CategorySerializer(serializers.ModelSerializer):
             'meta', 'metaDescription', 'parent', 'children', 'order',
             'categoryImage', 'createdAt', 'updatedAt'
         ]
-        read_only_fields = ['id', 'children', 'createdAt', 'updatedAt']
+        read_only_fields = ['id', 'children', 'createdAt', 'updatedAt', 'site']
 
 
-class ArticleSerializer(serializers.ModelSerializer):
+class ArticleSerializer(BaseOnlyDateSerializer):
     category_name = serializers.CharField(source='category.categoryName', read_only=True)
     category_slug = serializers.CharField(source='category.slug', read_only=True)
 
@@ -78,7 +85,40 @@ class ArticleSerializer(serializers.ModelSerializer):
             'featured', 'slider', 'active', 'slug', 'counter', 'meta', 'metaDescription',
             'publicationDate', 'image', 'createdAt', 'updatedAt'
         ]
-        read_only_fields = ['id', 'counter', 'createdAt', 'updatedAt', 'publicationDate']
+        read_only_fields = ['id', 'counter', 'createdAt', 'updatedAt', 'publicationDate', 'site']
+
+    # Örnek: Alan bazlı validasyon
+    def validate_title(self, value):
+        if len(value) < 10:
+            raise serializers.ValidationError("Başlık en az 10 karakter olmalıdır.")
+        return value
+
+    def validate_content(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("İçerik boş olamaz.")
+        return value
+
+    # Örnek: Genel validasyon (non_field_errors) - birden fazla alan ilişkiliyse
+    def validate(self, attrs):
+        publication_date = attrs.get('publicationDate')
+        if publication_date:
+            from datetime import datetime
+            if publication_date < datetime.now().date():
+                # Örneğin, bugünün tarihinden küçük ise hata ver
+                raise serializers.ValidationError({
+                    'publicationDate': ["Yayın tarihi geçmiş bir tarih olamaz."]
+                })
+        return attrs
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if 'publicationDate' in representation and representation['publicationDate'] is not None:
+            publication_date_value = instance.publicationDate
+            # Tarihi Python ile elle formatla (gün ve ay 2 basamak olacak)
+            #representation['publicationDate'] = publication_date_value.strftime('%d.%m.%Y')
+            representation['publicationDate'] = publication_date_value.isoformat()
+        return representation
+
 
 class SiteDetailedReportSerializer(serializers.Serializer):
     period = serializers.DateTimeField()

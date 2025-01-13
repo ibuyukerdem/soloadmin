@@ -6,13 +6,13 @@ from soloblog.api.views import SiteDetailedReportAPIView, SiteRefererAPIView, Si
     AdvertisementViewSet, VisitorAnalyticsViewSet
 
 router = DefaultRouter()
-router.register(r'categories', CategoryViewSet, basename='category')
-router.register(r'articles', ArticleViewSet, basename='article')
-router.register(r'images', ImageViewSet, basename='image')
-router.register(r'comments', CommentViewSet, basename='comment')
-router.register(r'popup-ads', PopupAdViewSet, basename='popup-ad')
-router.register(r'advertisements', AdvertisementViewSet, basename='advertisement')
-router.register(r'visitor-analytics', VisitorAnalyticsViewSet, basename='visitor-analytics')
+router.register(r'category', CategoryViewSet, basename='category')
+router.register(r'article', ArticleViewSet, basename='article')
+router.register(r'image', ImageViewSet, basename='image')
+router.register(r'comment', CommentViewSet, basename='comment')
+router.register(r'popupad', PopupAdViewSet, basename='popup-ad')
+router.register(r'advertisement', AdvertisementViewSet, basename='advertisement')
+router.register(r'visitor-analytic', VisitorAnalyticsViewSet, basename='visitor-analytics')
 # URL Patterns
 urlpatterns = [
     path('', include(router.urls)),

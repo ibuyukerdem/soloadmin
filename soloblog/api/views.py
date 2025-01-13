@@ -4,14 +4,17 @@ from django.contrib.sites.models import Site
 from django.db.models import Count
 from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
+from common.base_views import AbstractBaseViewSet
 from common.utils import paginate_or_default
 from soloblog.models import VisitorAnalytics, Category, Article, Image, Comment, PopupAd, Advertisement
 from .serializers import CategorySerializer, ArticleSerializer, ImageSerializer, CommentSerializer, PopupAdSerializer, \
@@ -175,7 +178,7 @@ def apply_filters(queryset, filters):
     return queryset
 
 
-class CommentViewSet(ModelViewSet):
+class CommentViewSet(AbstractBaseViewSet):
     """
     Makale yorumları için CRUD işlemleri:
 
@@ -274,16 +277,18 @@ class ImageViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ArticleViewSet(ModelViewSet):
+class ArticleViewSet(AbstractBaseViewSet):
     """
     Makaleler için CRUD işlemleri:
-
     - Makaleleri listele.
     - Yeni bir makale oluştur.
     - Makale detayını görüntüle, güncelle veya sil.
     """
     queryset = Article.objects.select_related('category', 'category__parent', 'site').order_by('createdAt').all()
     serializer_class = ArticleSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['title', 'content']
+    ordering_fields = ['title', 'createdAt', 'publishedAt']
 
     @swagger_auto_schema(
         operation_description="Belirli bir siteye ait makaleleri filtrelemek için 'site_id' parametresini kullanabilirsiniz.",
@@ -298,38 +303,74 @@ class ArticleViewSet(ModelViewSet):
             openapi.Parameter(
                 'featured', openapi.IN_QUERY, description="Öne çıkan makaleleri filtrelemek için",
                 type=openapi.TYPE_BOOLEAN
-            )
+            ),
+            openapi.Parameter(
+                'ordering', openapi.IN_QUERY,
+                description="Makaleleri belirli alanlara göre sırala. Örneğin: `?ordering=title` ya da `?ordering=-createdAt`",
+                type=openapi.TYPE_STRING
+            ),
+            # Buradan itibaren filtre setinizde tanımladığınız filtrelere ilişkin parametreleri de belirtin
+            openapi.Parameter(
+                'title__icontains', openapi.IN_QUERY, description="Title (icontains)", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'title__iexact', openapi.IN_QUERY, description="Title (iexact)", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'title__istartswith', openapi.IN_QUERY, description="Title (istartswith)", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'title__iendswith', openapi.IN_QUERY, description="Title (iendswith)", type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'content__icontains', openapi.IN_QUERY, description="Content (icontains)", type=openapi.TYPE_STRING
+            ),
         ]
     )
     def list(self, request, *args, **kwargs):
         """
         Makaleleri listeleme. Opsiyonel olarak site, kategori ve öne çıkan durumuna göre filtreleme yapılabilir.
+        Ayrıca title veya content üzerinden belirttiğiniz filtrelerle arama yapabilirsiniz.
+
+        DİKKAT: AbstractBaseViewSet içindeki get_queryset() metodu,
+        kullanıcının `selectedSite` değerine göre sorguyu zaten filtreler.
         """
         site_id = self.request.query_params.get('site_id')
         category_id = self.request.query_params.get('category_id')
         featured = self.request.query_params.get('featured')
 
-        queryset = self.get_queryset()
+        # AbstractBaseViewSet içindeki get_queryset çağrılır:
+        queryset = super().get_queryset()
 
+        # İsteğe bağlı, tekrar 'site_id' parametresine göre filtre uygulamak isterseniz:
+        # Ancak unutmayın, AbstractBaseViewSet get_queryset() zaten user.selectedSite'e göre filtreliyor.
         if site_id:
             queryset = queryset.filter(site_id=site_id)
+
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
         if featured is not None:
             queryset = queryset.filter(featured=featured)
+
+        # Diğer filtreleriniz varsa (title, content, vb.) DjangoFilterBackend ile de yapabilirsiniz.
+        queryset = self.filter_queryset(queryset)
 
         return paginate_or_default(queryset, self.get_serializer_class(), request)
 
     def destroy(self, request, *args, **kwargs):
         """
         Makale silme işlemi.
+        AbstractBaseViewSet içinde yetki kontrolü (validate_user_site)
+        ve loglama zaten yapılıyor.
+        Yine de ek işlem yapmak isterseniz override edebilirsiniz.
         """
         article = self.get_object()
         article.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CategoryViewSet(ModelViewSet):
+class CategoryViewSet(AbstractBaseViewSet):
     """
     Kategoriler için CRUD işlemleri:
 

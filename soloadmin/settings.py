@@ -72,6 +72,9 @@ LOCAL_APPS = [
     'solopayment.apps.SolopaymentConfig',
     'soloblog.apps.SoloblogConfig',
     'common.apps.CommonConfig',
+    'solosurvey.apps.SolosurveyConfig',
+    'solosite.apps.SolositeConfig',
+    'accounts.apps.AccountsConfig',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -95,7 +98,9 @@ CUSTOM_MIDDLEWARE = [
     # 'middleware.soloadmin.cors_manager.DynamicCorsMiddleware',  # Dinamik CORS
     # 'middleware.soloadmin.global_rate_limit.GlobalRateLimitMiddleware',  # Global rate limit
     # 'middleware.soloadmin.site_management.SiteMiddleware',  # Site yönetimi
+    'middleware.soloadmin.UserTimezone.UserTimezoneMiddleware',  # Time Zone Yönetimi
     # 'middleware.soloaccounting.recaptcha_admin.ReCaptchaAdminMiddleware',  # ReCaptcha admin
+    'django.middleware.locale.LocaleMiddleware',
 ]
 
 MIDDLEWARE = SECURITY_MIDDLEWARE + CUSTOM_MIDDLEWARE
@@ -114,7 +119,7 @@ if ENV == 'development':
     CORS_ALLOW_CREDENTIALS = True
 
 # Site Ayarı
-SITE_ID = 2
+SITE_ID = 3
 ROOT_URLCONF = 'soloadmin.urls'
 
 # CORS Ayarı
@@ -176,6 +181,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 # DRF ayarları
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
@@ -244,11 +250,24 @@ CACHES = {
 }
 
 # Uluslararasılaşma Ayarları
-LANGUAGE_CODE = 'tr'
-TIME_ZONE = 'Europe/Istanbul'
+LANGUAGE_CODE = 'en'
+TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
+LANGUAGES = [
+    ('en', 'English'),
+    ('tr', 'Türkçe'),
+    ('de', 'Deutsch'),
+    ('fr', 'Français'),
+    ('nl', 'Nederlands (Hollanda Felemenkçesi)'),
+    ('ar', 'العربية'),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 # Statik ve Medya Dosyaları
 STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / 'soloaccounting' / 'static', ]
@@ -266,7 +285,7 @@ ADMIN_SITE_TITLE = "Solofor Yönetim Paneli"
 ADMIN_INDEX_TITLE = "Hoş Geldiniz! Solofor Yönetim Paneli"
 
 # Kullanıcı Modeli
-AUTH_USER_MODEL = 'soloaccounting.CustomUser'
+AUTH_USER_MODEL = 'common.CustomUser'
 
 # reCAPTCHA v3 configuration (using your keys from .env)
 RECAPTCHA_PUBLIC_KEY = config('RECAPTCHA_PUBLIC_KEY', default='').strip()
@@ -287,26 +306,89 @@ RECAPTCHA_REQUIRED_SCORE = 0.85
 
 LOGIN_REDIRECT_URL = '/admin/'
 
-# Loglama Ayarları
+ADMINS = [('Admin', 'ibrahim@solofor.com')]  # E-posta gönderilecek yöneticiler
+
+SERVER_EMAIL = 'soloadmin@hortumcesitleri.com'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'mail.hortumcesitleri.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = 'soloadmin@hortumcesitleri.com'
+EMAIL_HOST_PASSWORD = 'pPqGEghA4JNc31D'
+
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': True,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': (
+                '{asctime} - {levelname} - {message}'
+            ),
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} - {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
-        'file': {
+        'console': {
             'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'debug.log',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': 'logs/actions.log',
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,  # 7 günlük yedek
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': 'logs/error.log',
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,  # 7 günlük yedek
+            'formatter': 'verbose',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'formatter': 'verbose',
+        },
+        'db_file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': 'logs/db.log',
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 7,  # 7 günlük yedek
+            'formatter': 'verbose',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['file'],
-            'level': 'DEBUG',
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['console', 'error_file', 'mail_admins'],
+            'level': 'ERROR',
             'propagate': False,
         },
-        'axes': {
-            'handlers': ['file'],
+        'common': {
+            'handlers': ['console', 'file', 'error_file', 'mail_admins'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['db_file'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },

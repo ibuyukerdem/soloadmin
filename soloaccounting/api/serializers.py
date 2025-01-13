@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from soloaccounting.models import CustomUser, UserSite, ExtendedSite, Site, Product, SiteUrun, Menu
+from soloaccounting.models import ExtendedSite, Site, Product, SiteUrun, Menu
+from accounts.models import UserSite
+from common.models import CustomUser
+
+class ApplyCampaignSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    user_id = serializers.IntegerField(required=False)
+    cart_total = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
 
 
 class ExtendedSiteSerializer(serializers.ModelSerializer):
@@ -30,7 +38,8 @@ class UserSiteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserSite
-        fields = ['id', 'user', 'site', 'products', 'createdAt', 'updatedAt']
+        #fields = ['id', 'site', 'user', 'price', 'serviceDuration', 'isActive']
+        fields = ['id', 'site', 'user', 'products', 'createdAt', 'updatedAt']
         read_only_fields = ['createdAt', 'updatedAt']
 
     def get_products(self, obj):
@@ -53,7 +62,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
-            "phoneNumber",
+            "selectedSite",
             "mobilePhone",
             "address",
             "postalCode",
@@ -82,7 +91,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
 class UserSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phoneNumber', 'isIndividual']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'selectedSite', 'phoneNumber', 'isIndividual']
 
 
 class UserDetailSerializer(serializers.ModelSerializer):

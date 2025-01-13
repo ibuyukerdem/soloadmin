@@ -3,14 +3,16 @@ from . import views
 
 urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
-    path('accounting/', include('soloaccounting.api.urls')),  # soloaccounting API yönlendirmesi
-    path('blog/', include('soloblog.api.urls')),  # soloblog API yönlendirmesi
-    path('ecommerce/', include('soloecommerce.api.urls')),  # soloecommerce API yönlendirmesi
-    path('finance/', include('solofinance.api.urls')),  # solofinance API yönlendirmesi
-    path('invoice/', include('soloinvoice.api.urls')),  # soloinvoice API yönlendirmesi
-    path('payment/', include('solopayment.api.urls')),  # solopayment API yönlendirmesi
-    path('service/', include('soloservice.api.urls')),  # soloservice API yönlendirmesi
-    path('web/', include('soloweb.api.urls')),  # soloweb API yönlendirmesi
+    path('soloaccounting/', include('soloaccounting.api.urls')),  # soloaccounting API yönlendirmesi
+    path('soloblog/', include('soloblog.api.urls')),  # soloblog API yönlendirmesi
+    path('soloecommerce/', include('soloecommerce.api.urls')),  # soloecommerce API yönlendirmesi
+    path('solofinance/', include('solofinance.api.urls')),  # solofinance API yönlendirmesi
+    path('soloinvoice/', include('soloinvoice.api.urls')),  # soloinvoice API yönlendirmesi
+    path('solopayment/', include('solopayment.api.urls')),  # solopayment API yönlendirmesi
+    path('soloservice/', include('soloservice.api.urls')),  # soloservice API yönlendirmesi
+    path('soloweb/', include('soloweb.api.urls')),  # soloweb API yönlendirmesi
     path('common/', include('common.api.urls')),  # common API yönlendirmesi
+    path('solosurvey/', include('solosurvey.api.urls')),  # common API yönlendirmesi
+    path('solosite/', include('solosite.api.urls')),  # common API yönlendirmesi
 
 ]

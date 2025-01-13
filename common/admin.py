@@ -1,5 +1,70 @@
+from django import forms
 from django.contrib import admin
-from .models import GoogleApplicationsIntegration, SiteSettings, SmsSettings, SmtpSettings, WhatsAppSettings
+from django.utils.translation import gettext_lazy as _
+
+from .models import GoogleApplicationsIntegration, SiteSettings, SmsSettings, SmtpSettings, WhatsAppSettings, CustomUser
+
+
+# Özelleştirilmiş form açıklamaları (opsiyonel)
+def get_form(self, request, obj=None, **kwargs):
+    form = super().get_form(request, obj, **kwargs)
+    form.base_fields['code'].help_text = "Para birimi kodunu girin. Örn: 'USD', 'EUR', 'TRY'."
+    form.base_fields['name'].help_text = "Para biriminin tam adını girin. Örn: 'ABD Doları', 'Avro', 'Türk Lirası'."
+    form.base_fields[
+        'exchange_rate'].help_text = "1 birimin varsayılan para birimine karşılık gelen değerini girin. Örn: 1 USD = 20.000000 TL"
+    form.base_fields[
+        'is_default'].help_text = "Bu işaretlendiğinde, seçilen para birimi sistemin varsayılan para birimi olur."
+    return form
+
+
+class CustomUserAdminForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
+        help_texts = {
+            'isDealer': "Bu kullanıcı bir bayiyse işaretleyin. Bayilere özel kampanyalar ve ek iskontolar uygulanabilir.",
+            'dealer_segment': "Bayiyi hangi bayi segmentine dahil etmek istediğinizi seçin. Segmentler, özel fiyatlandırma ve kampanyalar için kullanılır.",
+        }
+
+
+@admin.register(CustomUser)
+class CustomUserAdmin(admin.ModelAdmin):
+    fieldsets = (
+        (None, {
+            'fields': ('username', 'password', 'email'),
+            'description': _('Kullanıcı adı, şifre ve e-posta bilgileri'),
+        }),
+        (_('Kişisel Bilgiler'), {
+            'fields': (
+                'first_name', 'last_name',
+                'phoneNumber', 'mobilePhone', 'address', 'postalCode',
+                'city', 'district', 'country', 'dateOfBirth', 'profilePicture',
+                'isIndividual', 'identificationNumber', 'taxOffice', 'companyName',
+                'isEfatura', 'secretQuestion', 'secretAnswer', 'smsPermission',
+                'digitalMarketingPermission', 'kvkkPermission', 'selectedSite',
+                'dealerID', 'dealer_segment', 'isDealer', 'discountRate',
+                'timezone', 'preferred_language'
+            ),
+            'description': _('Kişiye ait detaylı bilgiler'),
+        }),
+        (_('Yetkiler'), {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'description': _('Sisteme giriş, yetkilendirme ve gruplar'),
+        }),
+        (_('Önemli Tarihler'), {
+            'fields': ('last_login', 'date_joined'),
+            'description': _('Kullanıcının giriş ve kayıt tarihleri'),
+        }),
+    )
+    list_display = (
+        'username', 'email', 'first_name', 'last_name',
+        'is_active', 'is_staff', 'isDealer', 'selectedSite'
+    )
+    search_fields = ('username', 'email', 'first_name', 'last_name', 'companyName')
+    ordering = ('username',)
+    # Django'nın default UserAdmin'inde last_login ve date_joined sadece okunabilir olarak ayarlanır:
+    readonly_fields = ('last_login', 'date_joined')
+
 
 class WhatsAppSettingsAdmin(admin.ModelAdmin):
     """
@@ -18,7 +83,9 @@ class WhatsAppSettingsAdmin(admin.ModelAdmin):
         }),
     )
 
+
 admin.site.register(WhatsAppSettings, WhatsAppSettingsAdmin)
+
 
 class SmtpSettingsAdmin(admin.ModelAdmin):
     """
@@ -47,7 +114,9 @@ class SmtpSettingsAdmin(admin.ModelAdmin):
         }),
     )
 
+
 admin.site.register(SmtpSettings, SmtpSettingsAdmin)
+
 
 class SmsSettingsAdmin(admin.ModelAdmin):
     """
@@ -65,6 +134,7 @@ class SmsSettingsAdmin(admin.ModelAdmin):
             'fields': ('createdAt', 'updatedAt'),
         }),
     )
+
 
 admin.site.register(SmsSettings, SmsSettingsAdmin)
 

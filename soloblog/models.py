@@ -1,3 +1,23 @@
+# Model Açıklaması:
+# Bu model, projemizdeki her veri kaydının bir siteyle ilişkilendirilmesini sağlamak için
+# `common.models.AbstractBaseModel` sınıfını miras alır. Bu sınıf, aşağıdaki alanları içerir:
+# 1. `site`: Kaydın hangi siteye ait olduğunu belirtir (`ForeignKey(Site)`).
+# 2. `created_at`: Kaydın oluşturulma tarihi (`DateTimeField`).
+# 3. `updated_at`: Kaydın son güncellenme tarihi (`DateTimeField`).
+#
+# AbstractBaseModel kullanılarak, tekrarlayan kodlar minimize edilmiş ve verilerin çoklu site
+# desteği için yapılandırılması sağlanmıştır.
+
+# class ExampleModel(AbstractBaseModel):
+#     """
+#     Örnek model, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
+#     """
+#     name = models.CharField(max_length=255, help_text="Modelin adı")
+#     description = models.TextField(help_text="Modelin açıklaması")
+#
+#     def __str__(self):
+#         return self.name
+
 import os
 from io import BytesIO
 
@@ -9,6 +29,7 @@ from django.db import models, transaction
 from django.db.models import F, Max
 from django.db.models.signals import post_delete, pre_save
 from django.dispatch import receiver
+from django.utils.text import slugify
 
 from common.models import AbstractBaseModel
 from django.contrib.sites.models import Site
@@ -128,7 +149,7 @@ class Article(AbstractBaseModel):
     featured = models.BooleanField(default=False, verbose_name="Öne Çıkan")
     slider = models.BooleanField(default=False, verbose_name="Slider Gösterimi")
     active = models.BooleanField(default=True, verbose_name="Aktif")
-    slug = models.SlugField(unique=True, max_length=255, verbose_name="URL Yolu")
+    slug = models.SlugField(max_length=255, verbose_name="URL Yolu")
     counter = models.IntegerField(default=0, verbose_name="Sayaç")
     meta = models.TextField(blank=True, null=True, verbose_name="Meta Veriler")
     metaDescription = models.TextField(blank=True, null=True, verbose_name="Meta Açıklaması")
@@ -143,6 +164,7 @@ class Article(AbstractBaseModel):
     class Meta:
         verbose_name = "Makale"
         verbose_name_plural = "Makaleler"
+        unique_together = ('site', 'slug')
         indexes = [
             models.Index(fields=["category"]),  # Kategori bazlı sorgular için
             models.Index(fields=["site"]),  # Site bazlı sorgular için
@@ -151,6 +173,22 @@ class Article(AbstractBaseModel):
             models.Index(fields=["publicationDate"]),  # Tarih sıralama ve sorguları için
             models.Index(fields=["site", "category"]),
         ]
+
+    def save(self, *args, **kwargs):
+        # Eğer slug boşsa title'dan otomatik oluştur
+        if not self.slug:
+            # allow_unicode=True diyerek UTF-8 desteğini etkinleştiriyoruz.
+            self.slug = slugify(self.title, allow_unicode=True)
+
+        # Eğer oluşan slug database'de varsa, sonuna sayı ekleyerek unique hale getirebilirsiniz.
+        # Basit bir örnek:
+        original_slug = self.slug
+        counter = 1
+        while Article.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            self.slug = f"{original_slug}-{counter}"
+            counter += 1
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.title}"
@@ -232,6 +270,13 @@ class Image(AbstractBaseModel):
         super().save(*args, **kwargs)
 
     def compress_original_image(self):
+        # eğer field boşsa veya path özelliği yoksa => placeholder olabilir
+        if not self.imagePath or not hasattr(self.imagePath, 'path'):
+            return
+
+        # eğer "http" ile başlıyorsa => yine placeholder
+        if self.imagePath.name.startswith("http"):
+            return
         """Orijinal resmi sıkıştırarak JPEG formatında kaydet ve orijinal dosyayı sil"""
         with PILImage.open(self.imagePath) as image:
             if image.mode in ("RGBA", "P"):
@@ -245,6 +290,11 @@ class Image(AbstractBaseModel):
                 os.remove(originalPath)
 
     def create_resized_image(self):
+        # eğer URL ise atla
+        if not self.imagePath or not hasattr(self.imagePath, 'path'):
+            return
+        if self.imagePath.name.startswith("http"):
+            return
         """Resmi kare kırpıp WEBP formatında kaydet"""
         if not self.imagePath:
             return
@@ -310,7 +360,7 @@ class Comment(AbstractBaseModel):
     firstName = models.CharField(max_length=255, verbose_name="Ad")
     lastName = models.CharField(max_length=255, verbose_name="Soyad")
     email = models.EmailField(verbose_name="E-posta")
-    phoneNumber = models.CharField(max_length=15, verbose_name="Telefon Numarası")
+    phoneNumber = models.CharField(max_length=30, verbose_name="Telefon Numarası")
     rating = models.IntegerField(default=1, verbose_name="Yıldız Puanı", choices=[(i, str(i)) for i in range(1, 6)])
     content = models.TextField(verbose_name="Yorum")
     ip = models.GenericIPAddressField(blank=True, null=True, verbose_name="IP Adresi")
@@ -461,22 +511,4 @@ class VisitorAnalytics(AbstractBaseModel):
         return f"{visit_target} - {self.ip_address} - {self.visit_date}"
 
 
-# Model Açıklaması:
-# Bu model, projemizdeki her veri kaydının bir siteyle ilişkilendirilmesini sağlamak için
-# `common.models.AbstractBaseModel` sınıfını miras alır. Bu sınıf, aşağıdaki alanları içerir:
-# 1. `site`: Kaydın hangi siteye ait olduğunu belirtir (`ForeignKey(Site)`).
-# 2. `created_at`: Kaydın oluşturulma tarihi (`DateTimeField`).
-# 3. `updated_at`: Kaydın son güncellenme tarihi (`DateTimeField`).
-#
-# AbstractBaseModel kullanılarak, tekrarlayan kodlar minimize edilmiş ve verilerin çoklu site
-# desteği için yapılandırılması sağlanmıştır.
 
-# class ExampleModel(AbstractBaseModel):
-#     """
-#     Örnek model, AbstractBaseModel'i miras alarak `site`, `created_at` ve `updated_at` alanlarına sahiptir.
-#     """
-#     name = models.CharField(max_length=255, help_text="Modelin adı")
-#     description = models.TextField(help_text="Modelin açıklaması")
-#
-#     def __str__(self):
-#         return self.name

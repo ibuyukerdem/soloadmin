@@ -1,18 +1,142 @@
+from decimal import Decimal
+from django.db import models
 from django.contrib.sites.models import Site
 from django.core.cache import cache
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from soloaccounting.models import CustomUser, UserSite, Product, SiteUrun, Menu
+from soloaccounting.models import SiteUrun, Menu
+from accounts.models import UserSite
+
+from common.models import CustomUser
+from soloaccounting.models import Product, Campaign
 from .serializers import UserSummarySerializer, UserDetailSerializer, CustomUserSerializer, UserSiteSerializer, \
-    ProductSerializer, SiteUrunSerializer, MenuSerializer
+    ProductSerializer, SiteUrunSerializer, MenuSerializer, ApplyCampaignSerializer
+from django.db.models import Q
+from django.utils.timezone import now
+
+
+class ApplyCampaignView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = ApplyCampaignSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        product_id = serializer.validated_data['product_id']
+        user_id = serializer.validated_data.get('user_id', None)
+        cart_total = serializer.validated_data.get('cart_total', Decimal('0.00'))
+
+        # Ürünü al
+        try:
+            product = Product.objects.get(id=product_id, isActive=True)
+        except Product.DoesNotExist:
+            return Response({'error': 'Ürün bulunamadı'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Kullanıcı bilgisi ve segmentini al (eğer user_id varsa)
+        user = None
+        user_segment = None
+        dealer_segment = None
+        is_dealer = False
+        if user_id:
+            user = CustomUser.objects.get(id=user_id)
+            user_segment = user.usersegment_set.first()  # Örnek olarak ilk segment
+            dealer_segment = user.dealer_segment
+            is_dealer = user.isDealer
+
+        # Şimdi geçerli kampanyaları bul
+        now = timezone.now()
+        applicable_campaigns = Campaign.objects.filter(
+            is_active=True
+        ).filter(
+            # Başlangıç ve bitiş tarihine göre filtre
+            start_date__lte=now,
+        ).filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=now)
+        )
+
+        # Ürüne özgü kampanyalar veya tüm ürünlere geçerli kampanyalar
+        applicable_campaigns = applicable_campaigns.filter(
+            models.Q(products__isnull=True) | models.Q(products=product)
+        ).distinct()
+
+        # Kampanyaların koşullarını değerlendir
+        # Her kampanya için Condition'ları kontrol et
+        eligible_campaigns = []
+        for camp in applicable_campaigns:
+            conditions = camp.conditions.all()
+            if all(self.check_condition(cond, product, user, user_segment, dealer_segment, cart_total) for cond in
+                   conditions):
+                eligible_campaigns.append(camp)
+
+        # Eğer birden fazla kampanya uygunsa, öncelik belirlemek veya tüm aksiyonları uygulamak gerekebilir.
+        # Burada örnek olarak tüm uygun kampanyaların aksiyonlarını uyguluyoruz.
+        final_price = product.price
+        for camp in eligible_campaigns:
+            actions = camp.actions.all()
+            for action in actions:
+                final_price = self.apply_action(action, final_price, product)
+
+        return Response({
+            'product_id': product_id,
+            'original_price': str(product.price),
+            'discounted_price': str(final_price),
+            'campaigns_applied': [c.name for c in eligible_campaigns]
+        }, status=200)
+
+    def check_condition(self, condition, product, user, user_segment, dealer_segment, cart_total):
+        # Burada condition_type'a göre koşulları kontrol edebilirsiniz.
+        ctype = condition.condition_type.code
+        params = condition.params
+
+        if ctype == 'USER_SEGMENT':
+            # Kullanıcının segmenti condition.user_segment ile eşleşmeli
+            if condition.user_segment and user_segment:
+                return condition.user_segment == user_segment
+            return False
+
+        if ctype == 'DEALER_SEGMENT':
+            if condition.dealer_segment and dealer_segment:
+                return condition.dealer_segment == dealer_segment
+            return False
+
+        if ctype == 'PRODUCT_PURCHASED':
+            # Örneğin params={'product_id': X} gibi bir kontrol yapabilirsiniz
+            required_pid = params.get('product_id', None)
+            # Bu örnekte, koşul "Sepete eklenen ürün bu mu?" olabilir:
+            return required_pid == product.id
+
+        if ctype == 'MIN_CART_TOTAL':
+            required_amount = Decimal(params.get('amount', '0.00'))
+            return cart_total >= required_amount
+
+        # Diğer koşulları da benzer şekilde ekleyin.
+        return True
+
+    def apply_action(self, action, current_price, product):
+        # Aksiyon tipine göre fiyatı güncelle
+        atype = action.action_type.code
+        params = action.params
+
+        if atype == 'DISCOUNT_PERCENT':
+            percentage = Decimal(params.get('percentage', '0'))
+            discount_amount = current_price * (percentage / Decimal('100'))
+            return current_price - discount_amount
+
+        if atype == 'DISCOUNT_FIXED':
+            discount_value = Decimal(params.get('value', '0.00'))
+            return max(current_price - discount_value, Decimal('0.00'))
+
+        # GIFT_PRODUCT ya da ADD_CONTENT gibi aksiyonlar sepete ek nesne eklemek için kullanılabilir.
+        # Fiyata direkt etkisi yoksa current_price geri döndürün.
+        return current_price
 
 
 class UserSiteViewSet(viewsets.ModelViewSet):
@@ -100,6 +224,7 @@ class UserSiteViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+
 class UserViewSet(ModelViewSet):
     queryset = CustomUser.objects.all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -127,7 +252,7 @@ def me(request):
 
 
 class ProductViewSet(ModelViewSet):
-    queryset = Product.objects.order_by('name').all()
+    queryset = Product.objects.filter(isActive=True)
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['isActive', 'createDate', 'updateDate', 'slug']
@@ -280,6 +405,7 @@ def transform_menu_data(menu_data, subheader_title, user):
             'items': [transform_item(m, user) for m in menu_data],
         }
     ]
+
 
 def transform_item(menu, user):
     if not user.is_superuser and menu.get('is_superuser_only', False):
