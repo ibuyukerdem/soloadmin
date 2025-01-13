@@ -4,7 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from common.utils.logging_helper import log_action
 
-
+# common/base_views.py
 class AbstractBaseViewSet(ModelViewSet):
     """
     Gelişmiş Soyut ViewSet Sınıfı:

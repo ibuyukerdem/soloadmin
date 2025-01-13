@@ -168,3 +168,5 @@ class VisitorAnalyticsAdmin(admin.ModelAdmin):
 
 # Admin paneline kaydetme
 admin.site.register(VisitorAnalytics, VisitorAnalyticsAdmin)
+
+

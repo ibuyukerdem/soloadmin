@@ -23,6 +23,8 @@ from io import BytesIO
 
 from PIL import Image as PILImage
 from django.contrib.auth.models import User
+from django.contrib.sites.models import Site
+from django.contrib.sites.models import Site
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.db import models, transaction
@@ -32,7 +34,12 @@ from django.dispatch import receiver
 from django.utils.text import slugify
 
 from common.models import AbstractBaseModel
-from django.contrib.sites.models import Site
+
+# Eğer Django 3.1+'sa JSONField'i kullanabilirsiniz:
+try:
+    from django.db.models import JSONField
+except ImportError:
+    from django.contrib.postgres.fields import JSONField
 
 
 class Category(AbstractBaseModel):
@@ -202,6 +209,7 @@ class Article(AbstractBaseModel):
 def delete_article_image(sender, instance, **kwargs):
     if instance.image:
         instance.image.delete(False)
+
 
 # Güncelleme sırasında eski resmi silmek için pre_save sinyali
 @receiver(pre_save, sender=Article)
@@ -406,6 +414,7 @@ class PopupAd(models.Model):
     def __str__(self):
         return f"Reklam ID: {self.id}, Aktif: {self.isActive}"
 
+
 class Advertisement(AbstractBaseModel):
     AD_POSITION_CHOICES = [
         ('article', 'Makale İçi'),
@@ -440,10 +449,12 @@ class Advertisement(AbstractBaseModel):
     def __str__(self):
         return f"{self.site.domain} - {self.get_position_display()} Reklamı"
 
+
 @receiver(post_delete, sender=Advertisement)
 def delete_advertisement_image(sender, instance, **kwargs):
     if instance.image:
         instance.image.delete(save=False)
+
 
 @receiver(pre_save, sender=Advertisement)
 def delete_old_advertisement_image(sender, instance, **kwargs):
@@ -509,6 +520,5 @@ class VisitorAnalytics(AbstractBaseModel):
     def __str__(self):
         visit_target = "Ana Sayfa" if self.visit_type == 'homepage' else self.article.title
         return f"{visit_target} - {self.ip_address} - {self.visit_date}"
-
 
 
