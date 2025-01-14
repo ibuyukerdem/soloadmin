@@ -28,6 +28,15 @@ class AbstractBaseViewSet(ModelViewSet):
         """
         Kullanıcının seçili sitesi baz alınarak sorgu kümesini filtreler.
         """
+        # Swagger check:
+        if getattr(self, 'swagger_fake_view', False):
+            # Eğer swagger şema oluşturma modundaysak,
+            # Gerekirse boş queryset veya tam queryset döndürebilirsiniz.
+            # Boş queryset:
+            return self.queryset.none()
+            # ya da tam queryset:
+            # return super().get_queryset()
+
         self.validate_user_site()
         queryset = super().get_queryset()
         return queryset.filter(site=self.request.user.selectedSite)

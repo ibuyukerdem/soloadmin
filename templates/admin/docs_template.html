@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{#
+    ===============================================================
+    Developer Note: docs_template.html
+
+    Bu şablon, admin panelinde /admin/docs/ adresinde gösterilir.
+    - swagger_links ve redoc_links adındaki listelerden gelen
+      (label, url) ikililerini sıralar.
+    - Yeni bir app (ör. solonewapp) eklendiğinde şu adımları izleyin:
+      1) Projeye startapp komutuyla app oluşturun.
+      2) app/api/urls.py dosyası oluşturup urlpatterns tanımlayın.
+      3) soloadmin/api/urls.py içinde path('solonewapp/', ...) ile dahil edin.
+      4) soloadmin/urls.py içinde schema_view_solonewapp oluşturun (Swagger/Redoc).
+      5) Aşağıdaki swagger_links ve redoc_links listelerini üreten
+         "admin.py -> docs_view" fonksiyonuna
+         ("SoloNewApp Swagger", "/swagger/solonewapp/") gibi bir satır ekleyin.
+    - Bu adımlar sonrası /admin/docs/ sayfasında yeni app linkleri otomatik görünür.
+
+    Geliştiriciye Öneri:
+      - Yukarıdaki listede URL’ler pattern’e uygun olmalı.
+      - App versiyonlaması vs. yapacaksanız baslık ve url kismini güncelleyebilirsiniz.
+      - Sadece staff'a açık yapmak isterseniz schema_view'da public=False ve
+        permission_classes=(OnlyStaffCanSeeDocs,) kullanabilirsiniz.
+    ===============================================================
+#}
+
+{% block title %}Dokümantasyon Linkleri{% endblock %}
+
+{% block content %}
+  <h1>API Dokümantasyon Linkleri</h1>
+
+  <p>
+    Merhaba {{ request.user.username }}, bu sayfada tüm
+    <strong>Swagger</strong> ve <strong>ReDoc</strong> linklerini
+    bulabilirsiniz. Eğer staff kullanıcıysanız, linklere tıklayarak
+    ilgili dokümana erişebilirsiniz.
+  </p>
+
+  <h2>Swagger Linkleri</h2>
+  <ul>
+    {% for label, url in swagger_links %}
+      <li><a href="{{ url }}" target="_blank">{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+
+  <h2>ReDoc Linkleri</h2>
+  <ul>
+    {% for label, url in redoc_links %}
+      <li><a href="{{ url }}" target="_blank">{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock %}

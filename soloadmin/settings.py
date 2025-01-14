@@ -125,11 +125,13 @@ ROOT_URLCONF = 'soloadmin.urls'
 # CORS Ayarı
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
 
-# Şablon Ayarları
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / "soloaccounting/templates"],
+        'DIRS': [
+            BASE_DIR / "templates",               # global templates klasörü
+            BASE_DIR / "soloaccounting/templates" # soloaccounting templates
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -184,6 +186,7 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     # 'DEFAULT_PERMISSION_CLASSES': (
     #     'rest_framework.permissions.AllowAny',
@@ -229,7 +232,7 @@ AXES_FAILURE_LIMIT_PER_SITE = False
 
 # Swagger Ayarları
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,  # Session Authentication devre dışı bırakıldı
+    'USE_SESSION_AUTH': True,
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',  # API anahtarı olarak ayarlandı

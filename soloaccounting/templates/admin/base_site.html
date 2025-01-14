@@ -1,18 +1,27 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
-
 {% block title %}Solofor Yönetim{% endblock %}
 
 {% block branding %}
 <div id="branding">
-    <img src="https://solofor.com/_next/image?url=%2Fimages%2Flogo%2Flogo_01.png&w=640&q=75" alt="Solofor Logo" style="height: 40px;">
+    <img src="https://solofor.com/_next/image?url=%2Fimages%2Flogo%2Flogo_01.png&w=640&q=75"
+         alt="Solofor Logo"
+         style="height: 40px;">
     <h1 id="site-name">Yönetim Paneli</h1>
 </div>
 {% endblock %}
 
 {% block nav-global %}
-<!-- Üst navigasyon menüsü (isteğe bağlı olarak özelleştirilebilir) -->
+{{ block.super }}
+<!-- Üst navigasyon menüsü içinde Docs linki eklemek -->
+<ul style="margin-left: 20px;">
+  <li>
+    <a href="{% url 'admin:docs' %}" style="font-weight: 600; color: #fff;">
+      Docs
+    </a>
+  </li>
+</ul>
 {% endblock %}
 
 {% block extrastyle %}

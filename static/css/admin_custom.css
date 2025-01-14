@@ -1,0 +1,45 @@
+/* admin_custom.css */
+
+/* Branding container */
+.branding-container {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+}
+
+.branding-logo {
+  height: 40px;
+  margin-right: 10px;
+}
+
+.branding-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #222;
+  margin: 0;
+}
+
+/* Nav Global List (üst menü) */
+.nav-global-list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-global-item {
+  margin-left: 20px; /* arzuya göre artırıp azaltabilirsiniz */
+}
+
+.nav-global-link {
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.nav-global-link:hover {
+  color: #ccf; /* hover rengi (açık mavi ton) */
+}
+
+/* Admin arayüzünün diğer özelleştirmeleri... */
