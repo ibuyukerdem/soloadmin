@@ -1,3 +1,4 @@
+# middleware/soloadmin/site_management.py
 """
 Bu middleware, gelen HTTP isteğinin host adını kullanarak Django'nun Site modelinden ilgili site nesnesini belirler.
 Eğer bir eşleşme bulunursa, isteğe (request) `site` ve varsa ilişkili `module` bilgilerini ekler.

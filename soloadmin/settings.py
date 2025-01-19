@@ -75,6 +75,10 @@ LOCAL_APPS = [
     'solosurvey.apps.SolosurveyConfig',
     'solosite.apps.SolositeConfig',
     'accounts.apps.AccountsConfig',
+    'soloaccounting.servers',
+    'soloaccounting.commerce',
+    'soloaccounting.campaigns',
+
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -97,7 +101,7 @@ CUSTOM_MIDDLEWARE = [
     # 'middleware.soloadmin.request_validator.ValidateRequestMiddleware',  # İstek doğrulama
     # 'middleware.soloadmin.cors_manager.DynamicCorsMiddleware',  # Dinamik CORS
     # 'middleware.soloadmin.global_rate_limit.GlobalRateLimitMiddleware',  # Global rate limit
-    # 'middleware.soloadmin.site_management.SiteMiddleware',  # Site yönetimi
+    'middleware.soloadmin.site_management.SiteMiddleware',  # Site yönetimi
     'middleware.soloadmin.UserTimezone.UserTimezoneMiddleware',  # Time Zone Yönetimi
     # 'middleware.soloaccounting.recaptcha_admin.ReCaptchaAdminMiddleware',  # ReCaptcha admin
     'django.middleware.locale.LocaleMiddleware',
@@ -129,8 +133,8 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / "templates",               # global templates klasörü
-            BASE_DIR / "soloaccounting/templates" # soloaccounting templates
+            BASE_DIR / "templates",  # global templates klasörü
+            BASE_DIR / "soloaccounting/templates"  # soloaccounting templates
         ],
         'APP_DIRS': True,
         'OPTIONS': {

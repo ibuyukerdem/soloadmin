@@ -19,11 +19,7 @@ from .views import (
     SmsSettingsViewSet,
     SmtpSettingsViewSet,
     GoogleApplicationsIntegrationViewSet,
-    SiteSettingsViewSet,
     SocialMediaViewSet,
-    HomePageSettingsViewSet,
-    FooterSettingsViewSet,
-    MenuViewSet,
     CustomUserViewSet
 )
 
@@ -34,11 +30,9 @@ router.register(r"whatsapp-settings", WhatsAppSettingsViewSet, basename="whatsap
 router.register(r"sms-settings", SmsSettingsViewSet, basename="sms-settings")
 router.register(r"smtp-settings", SmtpSettingsViewSet, basename="smtp-settings")
 router.register(r"google-applications", GoogleApplicationsIntegrationViewSet, basename="google-applications")
-router.register(r"site-settings", SiteSettingsViewSet, basename="site-settings")
+
 router.register(r"social-media", SocialMediaViewSet, basename="social-media")
-router.register(r"home-page-settings", HomePageSettingsViewSet, basename="home-page-settings")
-router.register(r"footer-settings", FooterSettingsViewSet, basename="footer-settings")
-router.register(r"menus", MenuViewSet, basename="menus")
+
 router.register(r"users", CustomUserViewSet, basename="custom-users")
 
 urlpatterns = [

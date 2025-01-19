@@ -20,11 +20,7 @@ from common.models import (
     SmsSettings,
     SmtpSettings,
     GoogleApplicationsIntegration,
-    SiteSettings,
     SocialMedia,
-    HomePageSettings,
-    FooterSettings,
-    Menu
 )
 from .serializers import (
     LogEntrySerializer,
@@ -32,11 +28,7 @@ from .serializers import (
     SmsSettingsSerializer,
     SmtpSettingsSerializer,
     GoogleApplicationsIntegrationSerializer,
-    SiteSettingsSerializer,
     SocialMediaSerializer,
-    HomePageSettingsSerializer,
-    FooterSettingsSerializer,
-    MenuSerializer,
     CustomUserSerializer
 )
 
@@ -177,33 +169,6 @@ class GoogleApplicationsIntegrationViewSet(AbstractBaseViewSet):
 
 
 # -----------------------------------------------------------------------------
-# SiteSettings ViewSet
-# -----------------------------------------------------------------------------
-@swagger_auto_schema(
-    operation_summary="Site Settings CRUD",
-    operation_description="""
-Site temel ayarları (logo, favicon, meta title vb.) için CRUD işlemleri.
-<br><b>Filtrelenebilen Alanlar</b>: siteName, metaTitle
-<br><b>Arama Yapılabilen Alanlar</b>: siteName, metaTitle
-<br><b>Sıralama Yapılabilen Alanlar</b>: id, createdAt, updatedAt
-""",
-    tags=["Site Settings"]
-)
-class SiteSettingsViewSet(AbstractBaseViewSet):
-    """
-    Site temel ayarları (logo, favicon, meta title vb.) için CRUD işlemleri.
-    """
-    queryset = SiteSettings.objects.all()
-    serializer_class = SiteSettingsSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["siteName", "metaTitle"]
-    search_fields = ["siteName", "metaTitle"]
-    ordering_fields = ["id", "createdAt", "updatedAt"]
-    ordering = ["-createdAt"]
-
-
-# -----------------------------------------------------------------------------
 # SocialMedia ViewSet
 # -----------------------------------------------------------------------------
 @swagger_auto_schema(
@@ -228,87 +193,6 @@ class SocialMediaViewSet(AbstractBaseViewSet):
     search_fields = ["icon", "link"]
     ordering_fields = ["id", "createdAt"]
     ordering = ["-createdAt"]
-
-
-# -----------------------------------------------------------------------------
-# HomePageSettings ViewSet
-# -----------------------------------------------------------------------------
-@swagger_auto_schema(
-    operation_summary="Home Page Settings CRUD",
-    operation_description="""
-Anasayfa slider, slogan vb. ayarları için CRUD işlemleri.
-<br><b>Filtrelenebilen Alanlar</b>: sliderSlogan, tickerText
-<br><b>Arama Yapılabilen Alanlar</b>: sliderSlogan, tickerText
-<br><b>Sıralama Yapılabilen Alanlar</b>: id, createdAt
-""",
-    tags=["Home Page Settings"]
-)
-class HomePageSettingsViewSet(AbstractBaseViewSet):
-    """
-    Anasayfa slider, slogan vb. ayarları için CRUD işlemleri.
-    """
-    queryset = HomePageSettings.objects.all()
-    serializer_class = HomePageSettingsSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["sliderSlogan", "tickerText"]
-    search_fields = ["sliderSlogan", "tickerText"]
-    ordering_fields = ["id", "createdAt"]
-    ordering = ["-createdAt"]
-
-
-# -----------------------------------------------------------------------------
-# FooterSettings ViewSet
-# -----------------------------------------------------------------------------
-@swagger_auto_schema(
-    operation_summary="Footer Settings CRUD",
-    operation_description="""
-Footer (alt bilgi) ayarları için CRUD işlemleri.
-<br><b>Filtrelenebilen Alanlar</b>: footerSlogan, footerAnnouncementTitle
-<br><b>Arama Yapılabilen Alanlar</b>: footerSlogan, footerAnnouncementTitle
-<br><b>Sıralama Yapılabilen Alanlar</b>: id, createdAt
-""",
-    tags=["Footer Settings"]
-)
-class FooterSettingsViewSet(AbstractBaseViewSet):
-    """
-    Footer (alt bilgi) ayarları için CRUD işlemleri.
-    """
-    queryset = FooterSettings.objects.all()
-    serializer_class = FooterSettingsSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["footerSlogan", "footerAnnouncementTitle"]
-    search_fields = ["footerSlogan", "footerAnnouncementTitle"]
-    ordering_fields = ["id", "createdAt"]
-    ordering = ["-createdAt"]
-
-
-# -----------------------------------------------------------------------------
-# Menu ViewSet
-# -----------------------------------------------------------------------------
-@swagger_auto_schema(
-    operation_summary="Menu CRUD",
-    operation_description="""
-Menü ayarları için CRUD işlemleri.
-<br><b>Filtrelenebilen Alanlar</b>: title, isMainMenu, isFeatured
-<br><b>Arama Yapılabilen Alanlar</b>: title
-<br><b>Sıralama Yapılabilen Alanlar</b>: id, order, createdAt
-""",
-    tags=["Menu"]
-)
-class MenuViewSet(AbstractBaseViewSet):
-    """
-    Menü ayarları için CRUD işlemleri.
-    """
-    queryset = Menu.objects.all()
-    serializer_class = MenuSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["title", "isMainMenu", "isFeatured"]
-    search_fields = ["title"]
-    ordering_fields = ["id", "order", "createdAt"]
-    ordering = ["order"]
 
 
 # -----------------------------------------------------------------------------

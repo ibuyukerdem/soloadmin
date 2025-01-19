@@ -1,6 +1,7 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import UserViewSet, me, UserSiteViewSet, ProductViewSet, SiteUrunViewSet, UserMenuViewSet, ApplyCampaignView
+from .views import UserViewSet, me, UserSiteViewSet, ProductViewSet, SiteUrunViewSet, UserMenuViewSet, \
+    ApplyCampaignView, SiteInfoView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
@@ -12,6 +13,7 @@ router.register(r'user-menu', UserMenuViewSet, basename='user-menu')
 urlpatterns = [
     path('me/', me, name='me'),  # Giriş yapan kullanıcı bilgilerini döndüren endpoint
     path('campaigns/apply/', ApplyCampaignView.as_view(), name='apply-campaign'),
+    path('site-info/', SiteInfoView.as_view(), name='site-info'),
 ]
 
 urlpatterns += router.urls

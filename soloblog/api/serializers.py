@@ -2,7 +2,8 @@ from django.utils.formats import date_format
 from rest_framework import serializers
 
 from common.base_serializer import BaseOnlyDateSerializer
-from soloblog.models import Category, Article, Image, Comment, PopupAd, Advertisement, VisitorAnalytics
+from soloblog.models import Category, Article, Image, Comment, PopupAd, Advertisement, VisitorAnalytics, SiteSettings, \
+    FooterSettings, Menu, HomePageSettings
 
 
 class VisitorAnalyticsSerializer(serializers.ModelSerializer):
@@ -115,7 +116,7 @@ class ArticleSerializer(BaseOnlyDateSerializer):
         if 'publicationDate' in representation and representation['publicationDate'] is not None:
             publication_date_value = instance.publicationDate
             # Tarihi Python ile elle formatla (gün ve ay 2 basamak olacak)
-            #representation['publicationDate'] = publication_date_value.strftime('%d.%m.%Y')
+            # representation['publicationDate'] = publication_date_value.strftime('%d.%m.%Y')
             representation['publicationDate'] = publication_date_value.isoformat()
         return representation
 
@@ -168,3 +169,56 @@ class AllSitesVisitorStatsSerializer(serializers.Serializer):
     weekly_visitors = WeeklyVisitorSerializer(many=True)
     monthly_visitors = MonthlyVisitorSerializer(many=True)
     yearly_visitors = YearlyVisitorSerializer(many=True)
+
+
+# -----------------------------------------------------------------------------
+# HomePageSettings Serializer
+# -----------------------------------------------------------------------------
+class HomePageSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HomePageSettings
+        fields = "__all__"
+        read_only_fields = (
+            "createdAt",
+            "updatedAt",
+        )
+
+
+# -----------------------------------------------------------------------------
+# FooterSettings Serializer
+# -----------------------------------------------------------------------------
+class FooterSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterSettings
+        fields = "__all__"
+        read_only_fields = (
+            "createdAt",
+            "updatedAt",
+        )
+
+
+# -----------------------------------------------------------------------------
+# Menu Serializer
+# -----------------------------------------------------------------------------
+class MenuSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Menu
+        fields = "__all__"
+        read_only_fields = (
+            "createdAt",
+            "updatedAt",
+        )
+        ref_name = "CommonMenu"
+
+
+# -----------------------------------------------------------------------------
+# SiteSettings Serializer
+# -----------------------------------------------------------------------------
+class SiteSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SiteSettings
+        fields = "__all__"
+        read_only_fields = (
+            "createdAt",
+            "updatedAt",
+        )

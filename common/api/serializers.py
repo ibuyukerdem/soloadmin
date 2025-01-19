@@ -14,11 +14,7 @@ from common.models import (
     SmsSettings,
     SmtpSettings,
     GoogleApplicationsIntegration,
-    SiteSettings,
     SocialMedia,
-    HomePageSettings,
-    FooterSettings,
-    Menu
 )
 
 
@@ -88,17 +84,6 @@ class GoogleApplicationsIntegrationSerializer(serializers.ModelSerializer):
         )
 
 
-# -----------------------------------------------------------------------------
-# SiteSettings Serializer
-# -----------------------------------------------------------------------------
-class SiteSettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SiteSettings
-        fields = "__all__"
-        read_only_fields = (
-            "createdAt",
-            "updatedAt",
-        )
 
 
 # -----------------------------------------------------------------------------
@@ -114,44 +99,6 @@ class SocialMediaSerializer(serializers.ModelSerializer):
         )
 
 
-# -----------------------------------------------------------------------------
-# HomePageSettings Serializer
-# -----------------------------------------------------------------------------
-class HomePageSettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = HomePageSettings
-        fields = "__all__"
-        read_only_fields = (
-            "createdAt",
-            "updatedAt",
-        )
-
-
-# -----------------------------------------------------------------------------
-# FooterSettings Serializer
-# -----------------------------------------------------------------------------
-class FooterSettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FooterSettings
-        fields = "__all__"
-        read_only_fields = (
-            "createdAt",
-            "updatedAt",
-        )
-
-
-# -----------------------------------------------------------------------------
-# Menu Serializer
-# -----------------------------------------------------------------------------
-class MenuSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Menu
-        fields = "__all__"
-        read_only_fields = (
-            "createdAt",
-            "updatedAt",
-        )
-        ref_name = "CommonMenu"
 
 
 # -----------------------------------------------------------------------------

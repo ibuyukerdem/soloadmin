@@ -19,7 +19,9 @@ from soloaccounting.models import SiteUrun, Menu
 from accounts.models import UserSite
 
 from common.models import CustomUser
-from soloaccounting.models import Product, Campaign
+from soloaccounting.models import Product
+from soloaccounting.campaigns.models import Campaign
+
 from .serializers import UserSummarySerializer, UserDetailSerializer, CustomUserSerializer, UserSiteSerializer, \
     ProductSerializer, SiteUrunSerializer, MenuSerializer, ApplyCampaignSerializer
 from django.db.models import Q
@@ -510,3 +512,21 @@ class UserMenuViewSet(viewsets.ReadOnlyModelViewSet):
         # Cache'e kaydet ve yanıtla
         cache.set(cache_key, nav_data, 60 * 5)
         return Response(nav_data)
+
+
+class SiteInfoView(APIView):
+    def get(self, request):
+        """
+        Bu endpoint, gelen isteğin domainine göre Site nesnesini döner.
+        Örn. /api/site-info
+        """
+        if request.site:
+            return Response({
+                'domain': request.site.domain,
+                'site_name': request.site.name,
+                'site_id': request.site.id,
+            })
+        else:
+            return Response({
+                'error': 'Site not found for this domain.'
+            }, status=404)

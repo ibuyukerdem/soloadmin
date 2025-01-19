@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 
 from soloblog.api.views import SiteDetailedReportAPIView, SiteRefererAPIView, SiteTrafficAPIView, \
     AllSitesVisitorStatsAPIView, CategoryViewSet, ArticleViewSet, ImageViewSet, CommentViewSet, PopupAdViewSet, \
-    AdvertisementViewSet, VisitorAnalyticsViewSet
+    AdvertisementViewSet, VisitorAnalyticsViewSet, HomePageSettingsViewSet, FooterSettingsViewSet, MenuViewSet, \
+    SiteSettingsViewSet
 
 router = DefaultRouter()
 router.register(r'category', CategoryViewSet, basename='category')
@@ -13,6 +14,10 @@ router.register(r'comment', CommentViewSet, basename='comment')
 router.register(r'popupad', PopupAdViewSet, basename='popup-ad')
 router.register(r'advertisement', AdvertisementViewSet, basename='advertisement')
 router.register(r'visitor-analytic', VisitorAnalyticsViewSet, basename='visitor-analytics')
+router.register(r"home-page-settings", HomePageSettingsViewSet, basename="home-page-settings")
+router.register(r"footer-settings", FooterSettingsViewSet, basename="footer-settings")
+router.register(r"menus", MenuViewSet, basename="menus")
+router.register(r"site-settings", SiteSettingsViewSet, basename="site-settings")
 # URL Patterns
 urlpatterns = [
     path('', include(router.urls)),

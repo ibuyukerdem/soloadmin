@@ -4,28 +4,24 @@
 {% block title %}Solofor Yönetim{% endblock %}
 
 {% block branding %}
-<div id="branding">
+<div id="branding" class="branding-container">
     <img src="https://solofor.com/_next/image?url=%2Fimages%2Flogo%2Flogo_01.png&w=640&q=75"
          alt="Solofor Logo"
-         style="height: 40px;">
-    <h1 id="site-name">Yönetim Paneli</h1>
+         class="branding-logo">
+    <h1 id="site-name" class="branding-title">Yönetim Paneli</h1>
 </div>
 {% endblock %}
 
 {% block nav-global %}
 {{ block.super }}
-<!-- Üst navigasyon menüsü içinde Docs linki eklemek -->
-<ul style="margin-left: 20px;">
-  <li>
-    <a href="{% url 'admin:docs' %}" style="font-weight: 600; color: #fff;">
-      Docs
-    </a>
+<ul class="nav-global-list">
+  <li class="nav-global-item">
+    <a href="{% url 'admin:docs' %}" class="nav-global-link">Dokümantasyon</a>
   </li>
 </ul>
 {% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
-<!-- Özel CSS dosyalarınızı burada ekleyebilirsiniz -->
 <link rel="stylesheet" type="text/css" href="{% static 'css/admin_custom.css' %}">
 {% endblock %}
